@@ -116,12 +116,19 @@ const Icon = {
 };
 
 /* ------------------------- checkbox -------------------------------- */
-function Check({ done, color, onClick, small }) {
+// A task that has subtasks is "complete" when all its subtasks are done;
+// a task without subtasks just uses its own checkbox.
+const taskComplete = (t) =>
+  t.subtasks && t.subtasks.length ? t.subtasks.every((s) => s.done) : !!t.done;
+
+function Check({ done, color, onClick, small, disabled }) {
   return (
     <button
-      className={"box" + (done ? " on" : "") + (small ? " sub" : "")}
-      style={done ? { background: color.dot } : undefined}
-      onClick={onClick}
+      type="button"
+      className={"box" + (done ? " on" : "") + (small ? " sub" : "") + (disabled ? " disabled" : "")}
+      style={{ "--dot": color.dot, "--chip": color.chip }}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       aria-pressed={done}
       aria-label={done ? "Mark not done" : "Mark done"}
     >
@@ -143,7 +150,7 @@ function ListColumn({
   const isTask = kind === "task";
   const hasAmount = kind === "material";
   const canSub = isTask && !!onAddSub;
-  const done = items.filter((i) => i.done).length;
+  const done = items.filter((i) => (isTask ? taskComplete(i) : i.done)).length;
 
   const submit = () => {
     const t = val.trim();
@@ -209,8 +216,13 @@ function ListColumn({
           {items.map((it) =>
             isTask ? (
               <li key={it.id} className="task-wrap">
-                <div className={"item" + (it.done ? " done" : "")}>
-                  <Check done={it.done} color={color} onClick={() => onToggle(it.id)} />
+                <div className={"item" + (taskComplete(it) ? " done" : "")}>
+                  <Check
+                    done={taskComplete(it)}
+                    disabled={!!(it.subtasks && it.subtasks.length)}
+                    color={color}
+                    onClick={() => onToggle(it.id)}
+                  />
                   <span className="item-text">{it.text}</span>
                   {it.subtasks && it.subtasks.length > 0 && (
                     <span className="subcount">
@@ -466,14 +478,14 @@ export default function App() {
   };
 
   const pct = (r) => {
-    const all = [...r.tasks, ...r.materials];
-    if (!all.length) return 0;
-    return Math.round((all.filter((i) => i.done).length / all.length) * 100);
+    const flags = [...r.tasks.map(taskComplete), ...r.materials.map((m) => !!m.done)];
+    if (!flags.length) return 0;
+    return Math.round((flags.filter(Boolean).length / flags.length) * 100);
   };
   const overall = () => {
-    const all = rooms.flatMap((r) => [...r.tasks, ...r.materials]);
-    if (!all.length) return 0;
-    return Math.round((all.filter((i) => i.done).length / all.length) * 100);
+    const flags = rooms.flatMap((r) => [...r.tasks.map(taskComplete), ...r.materials.map((m) => !!m.done)]);
+    if (!flags.length) return 0;
+    return Math.round((flags.filter(Boolean).length / flags.length) * 100);
   };
 
   const STAT = {
@@ -589,7 +601,7 @@ export default function App() {
         <main className="main">
           {(() => {
             const c = colorAt(active.ci ?? 0);
-            const tDone = active.tasks.filter((i) => i.done).length;
+            const tDone = active.tasks.filter(taskComplete).length;
             const mDone = active.materials.filter((i) => i.done).length;
             const p = pct(active);
             return (

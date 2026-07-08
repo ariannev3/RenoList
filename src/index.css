@@ -103,11 +103,20 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .item { display:flex; align-items:center; gap:12px; padding:11px 8px; border-radius:12px;
   transition:background .12s; }
 .item:hover { background:var(--cream); }
+/* checkbox — four states, pastel-themed via --dot (room accent) and --chip (soft tint).
+   Both custom properties are set inline per room on each .box. */
 .box { flex:0 0 auto; width:22px; height:22px; border-radius:7px; border:2px solid #C6BFB0;
-  display:flex; align-items:center; justify-content:center; color:#CFC9BB; transition:.15s; background:#fff; }
-.item:hover .box { border-color:#ABA391; }
-.box.on { border-color:transparent; color:#fff; }
-.box.on, .item:hover .box.on { border-color:transparent; }
+  display:flex; align-items:center; justify-content:center; color:#fff; background:#fff; cursor:pointer;
+  transition:border-color .15s, background .15s, box-shadow .15s; }
+/* Hover — only interactive, unchecked boxes react */
+.box:not(.on):not(.disabled):hover { border-color:var(--dot); background:var(--chip); }
+.box:focus-visible { outline:2px solid var(--dot); outline-offset:2px; }
+/* Checked — filled with the room accent + soft ring */
+.box.on { border-color:transparent; background:var(--dot); box-shadow:0 0 0 3px var(--chip); }
+/* Disabled — greyed and non-interactive (a task driven by its subtasks) */
+.box.disabled { cursor:not-allowed; }
+.box.disabled:not(.on) { background:#ECE7DD; border-color:#D3CDC0; box-shadow:none; }
+.box.disabled.on { opacity:.45; box-shadow:none; }
 .item-text { flex:1; min-width:0; font-size:14.5px; font-weight:500; word-break:break-word; }
 .item.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .amt-cell { flex:0 0 84px; }
@@ -136,7 +145,6 @@ body { background: #F1EBDD; overflow-x: hidden; }
   display:flex; flex-direction:column; }
 .subitem { display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:10px; transition:background .12s; }
 .subitem:hover { background:var(--cream); }
-.subitem:hover .box { border-color:#ABA391; }
 .subitem:hover .del { opacity:1; }
 .subitem .item-text { font-size:13.5px; }
 .subitem.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
