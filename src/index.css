@@ -105,7 +105,7 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .item:hover { background:var(--cream); }
 /* checkbox — four states, pastel-themed via --dot (room accent) and --chip (soft tint).
    Both custom properties are set inline per room on each .box. */
-.box { flex:0 0 auto; width:22px; height:22px; border-radius:7px; border:2px solid #C6BFB0;
+.box { flex:0 0 auto; width:22px; height:22px; border-radius:7px; border:2px solid #A7A192;
   display:flex; align-items:center; justify-content:center; color:#fff; background:#fff; cursor:pointer;
   transition:border-color .15s, background .15s, box-shadow .15s; }
 /* Hover — only interactive, unchecked boxes react */
