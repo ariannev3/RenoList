@@ -115,13 +115,36 @@ const Icon = {
   ),
 };
 
+/* ------------------------- checkbox -------------------------------- */
+function Check({ done, color, onClick, small }) {
+  return (
+    <button
+      className={"box" + (done ? " on" : "") + (small ? " sub" : "")}
+      style={done ? { background: color.dot } : undefined}
+      onClick={onClick}
+      aria-pressed={done}
+      aria-label={done ? "Mark not done" : "Mark done"}
+    >
+      {done && <Icon.check />}
+    </button>
+  );
+}
+
 /* --------------------------- list column --------------------------- */
-function ListColumn({ kind, color, items, onAdd, onToggle, onDelete, onAmount }) {
+function ListColumn({
+  kind, color, items, onAdd, onToggle, onDelete, onAmount,
+  onAddSub, onToggleSub, onDeleteSub,
+}) {
   const [val, setVal] = useState("");
   const [amt, setAmt] = useState("");
+  const [subFor, setSubFor] = useState(null); // id of task whose subtask input is open
+  const [subText, setSubText] = useState("");
+  const subRef = useRef(null);
   const isTask = kind === "task";
   const hasAmount = kind === "material";
+  const canSub = isTask && !!onAddSub;
   const done = items.filter((i) => i.done).length;
+
   const submit = () => {
     const t = val.trim();
     if (!t) return;
@@ -129,6 +152,15 @@ function ListColumn({ kind, color, items, onAdd, onToggle, onDelete, onAmount })
     setVal("");
     setAmt("");
   };
+  const submitSub = (taskId) => {
+    const t = subText.trim();
+    if (t) onAddSub(taskId, t);
+    setSubText("");
+    setSubFor(null);
+  };
+
+  useEffect(() => { if (subFor && subRef.current) subRef.current.focus(); }, [subFor]);
+
   return (
     <section className="col">
       <div className="col-head">
@@ -174,34 +206,79 @@ function ListColumn({ kind, color, items, onAdd, onToggle, onDelete, onAmount })
         </p>
       ) : (
         <ul className="list">
-          {items.map((it) => (
-            <li key={it.id} className={"item" + (it.done ? " done" : "")}>
-              <button
-                className={"box" + (it.done ? " on" : "")}
-                style={it.done ? { background: color.dot } : undefined}
-                onClick={() => onToggle(it.id)}
-                aria-pressed={it.done}
-                aria-label={it.done ? "Mark not done" : "Mark done"}
-              >
-                <Icon.check />
-              </button>
-              <span className="item-text">{it.text}</span>
-              {hasAmount && (
-                <span className="amt-cell">
-                  <input
-                    className="amt-input"
-                    value={it.amount || ""}
-                    onChange={(e) => onAmount(it.id, e.target.value)}
-                    placeholder="—"
-                    aria-label="Amount"
-                  />
-                </span>
-              )}
-              <button className="del" onClick={() => onDelete(it.id)} aria-label="Delete">
-                <Icon.x />
-              </button>
-            </li>
-          ))}
+          {items.map((it) =>
+            isTask ? (
+              <li key={it.id} className="task-wrap">
+                <div className={"item" + (it.done ? " done" : "")}>
+                  <Check done={it.done} color={color} onClick={() => onToggle(it.id)} />
+                  <span className="item-text">{it.text}</span>
+                  {it.subtasks && it.subtasks.length > 0 && (
+                    <span className="subcount">
+                      {it.subtasks.filter((s) => s.done).length}/{it.subtasks.length}
+                    </span>
+                  )}
+                  <button className="del" onClick={() => onDelete(it.id)} aria-label="Delete">
+                    <Icon.x />
+                  </button>
+                </div>
+
+                {it.subtasks && it.subtasks.length > 0 && (
+                  <ul className="sublist">
+                    {it.subtasks.map((st) => (
+                      <li key={st.id} className={"subitem" + (st.done ? " done" : "")}>
+                        <Check small done={st.done} color={color} onClick={() => onToggleSub(it.id, st.id)} />
+                        <span className="item-text">{st.text}</span>
+                        <button className="del" onClick={() => onDeleteSub(it.id, st.id)} aria-label="Delete subtask">
+                          <Icon.x />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {canSub && (subFor === it.id ? (
+                  <div className="sub-add">
+                    <span className="box sub" aria-hidden="true" />
+                    <input
+                      ref={subRef}
+                      className="sub-input"
+                      value={subText}
+                      onChange={(e) => setSubText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") submitSub(it.id);
+                        if (e.key === "Escape") { setSubFor(null); setSubText(""); }
+                      }}
+                      onBlur={() => submitSub(it.id)}
+                      placeholder="Add a subtask…"
+                    />
+                  </div>
+                ) : (
+                  <button className="sub-add-btn" onClick={() => { setSubFor(it.id); setSubText(""); }}>
+                    <Icon.plus /> Subtask
+                  </button>
+                ))}
+              </li>
+            ) : (
+              <li key={it.id} className={"item" + (it.done ? " done" : "")}>
+                <Check done={it.done} color={color} onClick={() => onToggle(it.id)} />
+                <span className="item-text">{it.text}</span>
+                {hasAmount && (
+                  <span className="amt-cell">
+                    <input
+                      className="amt-input"
+                      value={it.amount || ""}
+                      onChange={(e) => onAmount(it.id, e.target.value)}
+                      placeholder="—"
+                      aria-label="Amount"
+                    />
+                  </span>
+                )}
+                <button className="del" onClick={() => onDelete(it.id)} aria-label="Delete">
+                  <Icon.x />
+                </button>
+              </li>
+            )
+          )}
         </ul>
       )}
     </section>
@@ -335,6 +412,35 @@ export default function App() {
     update(active.id, (r) => ({
       ...r,
       [kind]: r[kind].filter((i) => i.id !== itemId),
+    }));
+
+  // --- subtasks (tasks only) ---
+  const addSubtask = (taskId, text) =>
+    update(active.id, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: [...(t.subtasks || []), { id: uid(), text, done: false }] }
+          : t
+      ),
+    }));
+  const toggleSubtask = (taskId, subId) =>
+    update(active.id, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).map((s) => (s.id === subId ? { ...s, done: !s.done } : s)) }
+          : t
+      ),
+    }));
+  const deleteSubtask = (taskId, subId) =>
+    update(active.id, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).filter((s) => s.id !== subId) }
+          : t
+      ),
     }));
 
   const createRoom = () => {
@@ -540,6 +646,9 @@ export default function App() {
                     onAdd={(t) => addItem("tasks", t)}
                     onToggle={(id) => toggleItem("tasks", id)}
                     onDelete={(id) => deleteItem("tasks", id)}
+                    onAddSub={addSubtask}
+                    onToggleSub={toggleSubtask}
+                    onDeleteSub={deleteSubtask}
                   />
                   <ListColumn
                     kind="material"
