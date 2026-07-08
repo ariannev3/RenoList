@@ -113,18 +113,16 @@ const Icon = {
       <circle cx="18" cy="20" r="1.4" fill="currentColor" />
     </svg>
   ),
-  chevron: (p) => (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" {...p}>
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  caret: (p) => (
+    <svg viewBox="0 0 24 24" width="12" height="12" {...p}>
+      <path d="M9 6l6 6-6 6z" fill="currentColor" />
     </svg>
   ),
 };
 
 /* ------------------------- checkbox -------------------------------- */
-// A task that has subtasks is "complete" when all its subtasks are done;
-// a task without subtasks just uses its own checkbox.
-const taskComplete = (t) =>
-  t.subtasks && t.subtasks.length ? t.subtasks.every((s) => s.done) : !!t.done;
+// A task is complete when its own checkbox is ticked (you sign it off yourself).
+const taskComplete = (t) => !!t.done;
 
 function Check({ done, color, onClick, small, disabled }) {
   return (
@@ -142,20 +140,54 @@ function Check({ done, color, onClick, small, disabled }) {
   );
 }
 
+/* --------------------- click-to-edit text -------------------------- */
+function EditableText({ value, onSave, className }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (editing && ref.current) { ref.current.focus(); ref.current.select(); }
+  }, [editing]);
+  const start = () => { setText(value); setEditing(true); };
+  const commit = () => {
+    const t = text.trim();
+    if (t && t !== value) onSave(t);
+    setEditing(false);
+  };
+  if (editing) {
+    return (
+      <input
+        ref={ref}
+        className="edit-input"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          else if (e.key === "Escape") setEditing(false);
+        }}
+        onBlur={commit}
+      />
+    );
+  }
+  return (
+    <span className={className} onClick={start} title="Click to edit">{value}</span>
+  );
+}
+
 /* ----------------------------- task row ---------------------------- */
-function TaskRow({ task, color, onToggle, onDelete, onAddSub, onToggleSub, onDeleteSub }) {
+function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggleSub, onDeleteSub, onRenameSub }) {
   const subs = task.subtasks || [];
   const hasSubs = subs.length > 0;
   const complete = taskComplete(task);
 
-  // Expand/collapse. Default: expanded while open, collapsed once complete.
+  // Expand/collapse. Default: expanded while open, collapsed once signed off.
   // A manual toggle overrides that until the completion state changes.
   const [override, setOverride] = useState(null); // null = follow default
   const prevComplete = useRef(complete);
   useEffect(() => {
     if (prevComplete.current !== complete) {
       prevComplete.current = complete;
-      setOverride(null); // snap back to default when a task opens/closes
+      setOverride(null);
     }
   }, [complete]);
   const expanded = override === null ? !complete : override;
@@ -175,19 +207,20 @@ function TaskRow({ task, color, onToggle, onDelete, onAddSub, onToggleSub, onDel
   return (
     <li className="task-wrap">
       <div className={"item" + (complete ? " done" : "")}>
-        <Check done={complete} disabled={hasSubs} color={color} onClick={() => onToggle(task.id)} />
-        <span className="item-text">{task.text}</span>
-        {hasSubs && (
-          <button
-            className={"subtoggle" + (expanded ? " open" : "")}
-            onClick={() => setOverride(!expanded)}
-            aria-expanded={expanded}
-            aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
-          >
-            {subs.filter((s) => s.done).length}/{subs.length}
-            <Icon.chevron className="chev" />
-          </button>
-        )}
+        <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
+        <div className="task-main">
+          <EditableText className="item-text" value={task.text} onSave={(t) => onRename(task.id, t)} />
+          {hasSubs && (
+            <button
+              className={"arrow" + (expanded ? " open" : "")}
+              onClick={() => setOverride(!expanded)}
+              aria-expanded={expanded}
+              aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
+            >
+              <Icon.caret />
+            </button>
+          )}
+        </div>
         <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
           <Icon.x />
         </button>
@@ -200,7 +233,7 @@ function TaskRow({ task, color, onToggle, onDelete, onAddSub, onToggleSub, onDel
               {subs.map((st) => (
                 <li key={st.id} className={"subitem" + (st.done ? " done" : "")}>
                   <Check small done={st.done} color={color} onClick={() => onToggleSub(task.id, st.id)} />
-                  <span className="item-text">{st.text}</span>
+                  <EditableText className="item-text" value={st.text} onSave={(t) => onRenameSub(task.id, st.id, t)} />
                   <button className="del" onClick={() => onDeleteSub(task.id, st.id)} aria-label="Delete subtask">
                     <Icon.x />
                   </button>
@@ -238,8 +271,8 @@ function TaskRow({ task, color, onToggle, onDelete, onAddSub, onToggleSub, onDel
 
 /* --------------------------- list column --------------------------- */
 function ListColumn({
-  kind, color, items, onAdd, onToggle, onDelete, onAmount,
-  onAddSub, onToggleSub, onDeleteSub,
+  kind, color, items, onAdd, onToggle, onDelete, onAmount, onRename,
+  onAddSub, onToggleSub, onDeleteSub, onRenameSub,
 }) {
   const [val, setVal] = useState("");
   const [amt, setAmt] = useState("");
@@ -310,31 +343,35 @@ function ListColumn({
                     color={color}
                     onToggle={onToggle}
                     onDelete={onDelete}
+                    onRename={onRename}
                     onAddSub={onAddSub}
                     onToggleSub={onToggleSub}
                     onDeleteSub={onDeleteSub}
+                    onRenameSub={onRenameSub}
                   />
                 ))
-            : items.map((it) => (
-                <li key={it.id} className={"item" + (it.done ? " done" : "")}>
-                  <Check done={it.done} color={color} onClick={() => onToggle(it.id)} />
-                  <span className="item-text">{it.text}</span>
-                  {hasAmount && (
-                    <span className="amt-cell">
-                      <input
-                        className="amt-input"
-                        value={it.amount || ""}
-                        onChange={(e) => onAmount(it.id, e.target.value)}
-                        placeholder="—"
-                        aria-label="Amount"
-                      />
-                    </span>
-                  )}
-                  <button className="del" onClick={() => onDelete(it.id)} aria-label="Delete">
-                    <Icon.x />
-                  </button>
-                </li>
-              ))}
+            : [...items]
+                .sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0))
+                .map((it) => (
+                  <li key={it.id} className={"item" + (it.done ? " done" : "")}>
+                    <Check done={it.done} color={color} onClick={() => onToggle(it.id)} />
+                    <EditableText className="item-text" value={it.text} onSave={(t) => onRename(it.id, t)} />
+                    {hasAmount && (
+                      <span className="amt-cell">
+                        <input
+                          className="amt-input"
+                          value={it.amount || ""}
+                          onChange={(e) => onAmount(it.id, e.target.value)}
+                          placeholder="—"
+                          aria-label="Amount"
+                        />
+                      </span>
+                    )}
+                    <button className="del" onClick={() => onDelete(it.id)} aria-label="Delete">
+                      <Icon.x />
+                    </button>
+                  </li>
+                ))}
         </ul>
       )}
     </section>
@@ -469,6 +506,11 @@ export default function App() {
       ...r,
       [kind]: r[kind].filter((i) => i.id !== itemId),
     }));
+  const renameItem = (kind, itemId, text) =>
+    update(active.id, (r) => ({
+      ...r,
+      [kind]: r[kind].map((i) => (i.id === itemId ? { ...i, text } : i)),
+    }));
 
   // --- subtasks (tasks only) ---
   const addSubtask = (taskId, text) =>
@@ -495,6 +537,15 @@ export default function App() {
       tasks: r.tasks.map((t) =>
         t.id === taskId
           ? { ...t, subtasks: (t.subtasks || []).filter((s) => s.id !== subId) }
+          : t
+      ),
+    }));
+  const renameSubtask = (taskId, subId, text) =>
+    update(active.id, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).map((s) => (s.id === subId ? { ...s, text } : s)) }
           : t
       ),
     }));
@@ -702,9 +753,11 @@ export default function App() {
                     onAdd={(t) => addItem("tasks", t)}
                     onToggle={(id) => toggleItem("tasks", id)}
                     onDelete={(id) => deleteItem("tasks", id)}
+                    onRename={(id, t) => renameItem("tasks", id, t)}
                     onAddSub={addSubtask}
                     onToggleSub={toggleSubtask}
                     onDeleteSub={deleteSubtask}
+                    onRenameSub={renameSubtask}
                   />
                   <ListColumn
                     kind="material"
@@ -713,6 +766,7 @@ export default function App() {
                     onAdd={(t, a) => addItem("materials", t, a)}
                     onToggle={(id) => toggleItem("materials", id)}
                     onDelete={(id) => deleteItem("materials", id)}
+                    onRename={(id, t) => renameItem("materials", id, t)}
                     onAmount={(id, a) => setAmount(id, a)}
                   />
                 </div>

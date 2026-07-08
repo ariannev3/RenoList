@@ -117,7 +117,10 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .box.disabled { cursor:not-allowed; }
 .box.disabled:not(.on) { background:#ECE7DD; border-color:#D3CDC0; box-shadow:none; }
 .box.disabled.on { opacity:.45; box-shadow:none; }
-.item-text { flex:1; min-width:0; font-size:14.5px; font-weight:500; word-break:break-word; }
+.item-text { flex:1; min-width:0; font-size:14.5px; font-weight:500; word-break:break-word; cursor:text; }
+.edit-input { flex:1; min-width:0; font-family:inherit; font-size:14px; font-weight:500; color:var(--ink);
+  background:#fff; border:1px solid rgba(38,35,29,.22); border-radius:8px; padding:5px 9px; outline:none; }
+.edit-input:focus { border-color:rgba(38,35,29,.4); }
 .item.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .amt-cell { flex:0 0 84px; }
 .amt-input { width:100%; background:var(--cream); border:1px solid transparent; border-radius:9px;
@@ -139,14 +142,12 @@ body { background: #F1EBDD; overflow-x: hidden; }
 
 /* subtasks */
 .task-wrap { display:flex; flex-direction:column; }
-.subcount { font-size:11.5px; font-weight:600; color:var(--muted); background:var(--cream);
-  padding:2px 8px; border-radius:99px; font-variant-numeric:tabular-nums; }
-.reno .subtoggle { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:600;
-  color:var(--muted); background:var(--cream); padding:3px 7px 3px 9px; border-radius:99px;
-  font-variant-numeric:tabular-nums; cursor:pointer; transition:color .12s, background .12s; }
-.reno .subtoggle:hover { color:var(--ink); background:#EBE4D4; }
-.subtoggle .chev { transition:transform .18s ease; }
-.subtoggle.open .chev { transform:rotate(180deg); }
+.task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+.task-main .item-text { flex:0 1 auto; }
+.reno .arrow { display:inline-flex; align-items:center; justify-content:center; padding:2px 2px;
+  color:var(--muted); cursor:pointer; transition:transform .18s ease, color .12s; }
+.reno .arrow:hover { color:var(--ink); }
+.arrow.open { transform:rotate(90deg); }
 .sublist { list-style:none; margin:0 0 0 11px; padding:2px 0 2px 21px; border-left:2px solid var(--line);
   display:flex; flex-direction:column; }
 .subitem { display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:10px; transition:background .12s; }
