@@ -565,11 +565,15 @@ function Home({ rooms, pct, overall, onOpenRoom, onAddRoom }) {
           const tDone = r.tasks.filter(taskComplete).length;
           const mDone = r.materials.filter((m) => m.done).length;
           return (
-            <button key={r.id} className="room-card" onClick={() => onOpenRoom(r.id)}>
+            <button
+              key={r.id}
+              className="room-card"
+              style={{ background: c.chip, color: c.ink }}
+              onClick={() => onOpenRoom(r.id)}
+            >
               <div className="room-card-top">
-                <span className="room-card-dot" style={{ background: c.dot }} />
                 <span className="room-card-name">{r.name}</span>
-                <span className="room-card-pct" style={{ color: c.ink }}>{p}%</span>
+                <span className="room-card-pct">{p}%</span>
               </div>
               <div className="bar room-card-bar">
                 <i style={{ width: p + "%", background: c.dot }} />
@@ -815,7 +819,7 @@ export default function App() {
           className={"home-btn" + (view === "home" ? " active" : "")}
           onClick={() => setView("home")}
         >
-          <Icon.home /> Home
+          <Icon.home /> Dashboard
         </button>
 
         <div className="side-label">Rooms</div>
