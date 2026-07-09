@@ -121,8 +121,8 @@ const Icon = {
     </svg>
   ),
   caret: (p) => (
-    <svg viewBox="0 0 24 24" width="12" height="12" {...p}>
-      <path d="M9 6l6 6-6 6z" fill="currentColor" />
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" {...p}>
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   grip: (p) => (
