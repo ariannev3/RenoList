@@ -87,6 +87,11 @@ async function saveBoard(rooms) {
 
 /* ------------------------------ icons ------------------------------ */
 const Icon = {
+  home: (p) => (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
+      <path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  ),
   check: (p) => (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" {...p}>
       <path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -532,12 +537,67 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
   );
 }
 
+/* ------------------------------ home -------------------------------- */
+function Home({ rooms, pct, overall, onOpenRoom, onAddRoom }) {
+  return (
+    <main className="main">
+      <div className="head">
+        <div>
+          <h1 className="title">Overview</h1>
+          <p className="subtitle">{rooms.length} room{rooms.length === 1 ? "" : "s"} · renovation progress</p>
+        </div>
+      </div>
+
+      <div className="home-overall">
+        <div className="home-overall-top">
+          <span className="home-overall-lbl">Whole project — tasks complete</span>
+          <span className="home-overall-pct">{overall}%</span>
+        </div>
+        <div className="bar home-overall-bar">
+          <i style={{ width: overall + "%", background: "linear-gradient(90deg,#EFC85F,#EE9BBC,#89B4EF)" }} />
+        </div>
+      </div>
+
+      <div className="room-grid">
+        {rooms.map((r, i) => {
+          const c = colorAt(r.ci ?? i);
+          const p = pct(r);
+          const tDone = r.tasks.filter(taskComplete).length;
+          const mDone = r.materials.filter((m) => m.done).length;
+          return (
+            <button key={r.id} className="room-card" onClick={() => onOpenRoom(r.id)}>
+              <div className="room-card-top">
+                <span className="room-card-dot" style={{ background: c.dot }} />
+                <span className="room-card-name">{r.name}</span>
+                <span className="room-card-pct" style={{ color: c.ink }}>{p}%</span>
+              </div>
+              <div className="bar room-card-bar">
+                <i style={{ width: p + "%", background: c.dot }} />
+              </div>
+              <div className="room-card-meta">
+                <span>{tDone}/{r.tasks.length} tasks</span>
+                <span>{mDone}/{r.materials.length} materials</span>
+              </div>
+            </button>
+          );
+        })}
+
+        <button className="room-card room-card-add" onClick={onAddRoom}>
+          <Icon.plus />
+          <span>New room</span>
+        </button>
+      </div>
+    </main>
+  );
+}
+
 /* ------------------------------ app -------------------------------- */
 export default function App() {
   const [rooms, setRooms] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState("connecting"); // connecting | live | offline
   const [activeId, setActiveId] = useState(null);
+  const [view, setView] = useState("home"); // "home" | "room"
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState(null);
@@ -702,6 +762,7 @@ export default function App() {
     const room = { id: uid(), name, ci: rooms.length, tasks: [], materials: [] };
     setRooms((rs) => [...rs, room]);
     setActiveId(room.id);
+    setView("room");
     setNewName("");
     setAdding(false);
   };
@@ -750,6 +811,13 @@ export default function App() {
           <span className="brand-name">Renovate</span>
         </div>
 
+        <button
+          className={"home-btn" + (view === "home" ? " active" : "")}
+          onClick={() => setView("home")}
+        >
+          <Icon.home /> Home
+        </button>
+
         <div className="side-label">Rooms</div>
 
         <DragList items={rooms} onReorder={reorderRooms}>
@@ -759,10 +827,10 @@ export default function App() {
               room={r}
               color={colorAt(r.ci ?? i).dot}
               count={r.tasks.length + r.materials.length}
-              active={r.id === activeId}
+              active={view === "room" && r.id === activeId}
               editing={editId === r.id}
               editName={editName}
-              onSelect={() => setActiveId(r.id)}
+              onSelect={() => { setActiveId(r.id); setView("room"); }}
               onStartEdit={() => { setEditId(r.id); setEditName(r.name); }}
               onEditChange={(v) => setEditName(v)}
               onEditCommit={renameRoom}
@@ -807,7 +875,7 @@ export default function App() {
       {/* ---------------- main ---------------- */}
       {!loaded ? (
         <main className="main loading"><div className="spinner" /></main>
-      ) : !active ? (
+      ) : rooms.length === 0 ? (
         <main className="main">
           <div className="blank">
             <h2>No rooms yet</h2>
@@ -815,6 +883,16 @@ export default function App() {
             <button onClick={() => setAdding(true)}>Add your first room</button>
           </div>
         </main>
+      ) : view === "home" ? (
+        <Home
+          rooms={rooms}
+          pct={pct}
+          overall={overall()}
+          onOpenRoom={(id) => { setActiveId(id); setView("room"); }}
+          onAddRoom={() => setAdding(true)}
+        />
+      ) : !active ? (
+        <main className="main loading"><div className="spinner" /></main>
       ) : (
         <main className="main">
           {(() => {
