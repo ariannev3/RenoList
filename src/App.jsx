@@ -377,7 +377,7 @@ function MaterialRow({ item, color, onToggle, onDelete, onRename, onAmount }) {
 }
 
 /* ----------------------------- room row ---------------------------- */
-function RoomRow({ room, color, count, active, editing, editName, onSelect, onStartEdit, onEditChange, onEditCommit, onDelete }) {
+function RoomRow({ room, ci, active, editing, editName, onSelect, onStartEdit, onEditChange, onEditCommit, onDelete, onPickColor, count }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: room.id });
   return (
     <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)}
@@ -387,7 +387,7 @@ function RoomRow({ room, color, count, active, editing, editName, onSelect, onSt
               onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
         <Icon.grip />
       </button>
-      <span className="room-dot" style={{ background: color }} />
+      <ColorPicker ci={ci} onPick={onPickColor} />
       {editing ? (
         <input autoFocus className="name-input" value={editName}
                onChange={(e) => onEditChange(e.target.value)}
@@ -403,6 +403,45 @@ function RoomRow({ room, color, count, active, editing, editName, onSelect, onSt
         </span>
       ) : (!editing && <span className="room-count">{count}</span>)}
     </div>
+  );
+}
+
+/* --------------------------- colour picker -------------------------- */
+function ColorPicker({ ci, onPick, size = "sm" }) {
+  const [open, setOpen] = useState(false);
+  const n = ROOM_COLORS.length;
+  const idx = ((ci ?? 0) % n + n) % n;
+  const current = ROOM_COLORS[idx];
+  return (
+    <span className="color-picker">
+      <button
+        type="button"
+        className={"color-trigger" + (size === "lg" ? " lg" : "")}
+        style={{ background: current.dot }}
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        aria-label="Change room colour"
+        aria-expanded={open}
+      />
+      {open && (
+        <>
+          <div className="color-pop-backdrop" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          <div className="color-pop" onClick={(e) => e.stopPropagation()}>
+            {ROOM_COLORS.map((col, i) => (
+              <button
+                key={col.key}
+                type="button"
+                className="color-swatch"
+                style={{ background: col.dot }}
+                onClick={() => { onPick(i); setOpen(false); }}
+                aria-label={col.key}
+              >
+                {i === idx && <Icon.check />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </span>
   );
 }
 
@@ -782,6 +821,7 @@ export default function App() {
       return next;
     });
   };
+  const setRoomColor = (id, ci) => update(id, (r) => ({ ...r, ci }));
 
   const pct = (r) => {
     if (!r.tasks.length) return 0;
@@ -829,7 +869,7 @@ export default function App() {
             <RoomRow
               key={r.id}
               room={r}
-              color={colorAt(r.ci ?? i).dot}
+              ci={r.ci ?? i}
               count={r.tasks.length + r.materials.length}
               active={view === "room" && r.id === activeId}
               editing={editId === r.id}
@@ -839,6 +879,7 @@ export default function App() {
               onEditChange={(v) => setEditName(v)}
               onEditCommit={renameRoom}
               onDelete={() => deleteRoom(r.id)}
+              onPickColor={(idx) => setRoomColor(r.id, idx)}
             />
           ))}
         </DragList>
@@ -907,11 +948,14 @@ export default function App() {
             return (
               <>
                 <div className="head">
-                  <div>
-                    <h1 className="title">{active.name}</h1>
-                    <p className="subtitle">
-                      {active.tasks.length} tasks · {active.materials.length} materials
-                    </p>
+                  <div className="head-title">
+                    <ColorPicker ci={active.ci ?? 0} size="lg" onPick={(idx) => setRoomColor(active.id, idx)} />
+                    <div>
+                      <h1 className="title">{active.name}</h1>
+                      <p className="subtitle">
+                        {active.tasks.length} tasks · {active.materials.length} materials
+                      </p>
+                    </div>
                   </div>
                   <div className="head-right">
                     <span className={"sync sync-" + status}>
