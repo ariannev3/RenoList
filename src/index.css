@@ -143,6 +143,19 @@ body { background: #F1EBDD; overflow-x: hidden; }
 /* subtasks */
 .task-wrap { display:flex; flex-direction:column; }
 .task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+
+/* drag handles */
+.reno .grip { flex:0 0 auto; display:flex; align-items:center; justify-content:center; width:18px; height:26px;
+  color:#C4BFB3; cursor:grab; touch-action:none; opacity:0; transition:opacity .12s, color .12s; }
+.reno .grip.grip-sm { width:16px; height:22px; }
+.reno .grip:hover { color:var(--muted); }
+.reno .grip:active { cursor:grabbing; }
+.item:hover .grip, .subitem:hover .grip { opacity:1; }
+.reno .room-grip { color:#6E6A5F; }
+.room-btn:hover .room-grip { opacity:1; }
+.reno .room-grip:hover { color:#BEB9AC; }
+/* touchscreens can't hover, so the handles are always visible there */
+@media (hover: none) { .reno .grip { opacity:1; } }
 .task-main .item-text { flex:0 1 auto; }
 .reno .arrow { display:inline-flex; align-items:center; justify-content:center; padding:2px 2px;
   color:var(--muted); cursor:pointer; transition:transform .18s ease, color .12s; }

@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, isConfigured } from "./supabaseClient";
+import {
+  DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove, useSortable, sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 /* ------------------------------------------------------------------ */
 /*  Renovation board — tasks & materials per room, shared via Supabase */
@@ -118,6 +125,16 @@ const Icon = {
       <path d="M9 6l6 6-6 6z" fill="currentColor" />
     </svg>
   ),
+  grip: (p) => (
+    <svg viewBox="0 0 24 24" width="14" height="14" {...p}>
+      <circle cx="9" cy="5" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="5" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="9" cy="19" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="19" r="1.5" fill="currentColor" />
+    </svg>
+  ),
 };
 
 /* ------------------------- checkbox -------------------------------- */
@@ -174,14 +191,65 @@ function EditableText({ value, onSave, className }) {
   );
 }
 
+/* --------------------------- drag list ----------------------------- */
+// Wraps a list so its items can be reordered by dragging their handle.
+// Works with mouse and touch (long-press) and keyboard.
+function DragList({ items, onReorder, children }) {
+  const ids = items.map((i) => i.id);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const handleEnd = ({ active, over }) => {
+    if (over && active.id !== over.id) {
+      const from = ids.indexOf(active.id);
+      const to = ids.indexOf(over.id);
+      if (from !== -1 && to !== -1) onReorder(arrayMove(items, from, to));
+    }
+  };
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEnd}>
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  );
+}
+const dragStyle = (transform, transition, isDragging) => ({
+  transform: CSS.Transform.toString(transform),
+  transition,
+  opacity: isDragging ? 0.6 : 1,
+  zIndex: isDragging ? 20 : undefined,
+  position: isDragging ? "relative" : undefined,
+});
+
+/* ----------------------------- subtask row ------------------------- */
+function SubtaskRow({ sub, taskId, color, onToggle, onDelete, onRename }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
+  return (
+    <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)}
+        className={"subitem" + (sub.done ? " done" : "")}>
+      <button className="grip grip-sm" {...attributes} {...listeners} aria-label="Drag to reorder">
+        <Icon.grip />
+      </button>
+      <Check small done={sub.done} color={color} onClick={() => onToggle(taskId, sub.id)} />
+      <EditableText className="item-text" value={sub.text} onSave={(t) => onRename(taskId, sub.id, t)} />
+      <button className="del" onClick={() => onDelete(taskId, sub.id)} aria-label="Delete subtask">
+        <Icon.x />
+      </button>
+    </li>
+  );
+}
+
 /* ----------------------------- task row ---------------------------- */
-function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggleSub, onDeleteSub, onRenameSub }) {
+function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub }) {
   const subs = task.subtasks || [];
   const hasSubs = subs.length > 0;
   const complete = taskComplete(task);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   // Expand/collapse. Default: expanded while open, collapsed once signed off.
-  // A manual toggle overrides that until the completion state changes.
   const [override, setOverride] = useState(null); // null = follow default
   const prevComplete = useRef(complete);
   useEffect(() => {
@@ -205,8 +273,11 @@ function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggle
   };
 
   return (
-    <li className="task-wrap">
+    <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="task-wrap">
       <div className={"item" + (complete ? " done" : "")}>
+        <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
+          <Icon.grip />
+        </button>
         <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
         <div className="task-main">
           <EditableText className="item-text" value={task.text} onSave={(t) => onRename(task.id, t)} />
@@ -229,17 +300,21 @@ function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggle
       {expanded && (
         <>
           {hasSubs && (
-            <ul className="sublist">
-              {subs.map((st) => (
-                <li key={st.id} className={"subitem" + (st.done ? " done" : "")}>
-                  <Check small done={st.done} color={color} onClick={() => onToggleSub(task.id, st.id)} />
-                  <EditableText className="item-text" value={st.text} onSave={(t) => onRenameSub(task.id, st.id, t)} />
-                  <button className="del" onClick={() => onDeleteSub(task.id, st.id)} aria-label="Delete subtask">
-                    <Icon.x />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <DragList items={subs} onReorder={(newSubs) => onReorderSub(task.id, newSubs)}>
+              <ul className="sublist">
+                {subs.map((st) => (
+                  <SubtaskRow
+                    key={st.id}
+                    sub={st}
+                    taskId={task.id}
+                    color={color}
+                    onToggle={onToggleSub}
+                    onDelete={onDeleteSub}
+                    onRename={onRenameSub}
+                  />
+                ))}
+              </ul>
+            </DragList>
           )}
 
           {adding ? (
@@ -269,10 +344,67 @@ function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggle
   );
 }
 
+/* ---------------------------- material row ------------------------- */
+function MaterialRow({ item, color, onToggle, onDelete, onRename, onAmount }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  return (
+    <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)}
+        className={"item" + (item.done ? " done" : "")}>
+      <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
+        <Icon.grip />
+      </button>
+      <Check done={item.done} color={color} onClick={() => onToggle(item.id)} />
+      <EditableText className="item-text" value={item.text} onSave={(t) => onRename(item.id, t)} />
+      <span className="amt-cell">
+        <input
+          className="amt-input"
+          value={item.amount || ""}
+          onChange={(e) => onAmount(item.id, e.target.value)}
+          placeholder="—"
+          aria-label="Amount"
+        />
+      </span>
+      <button className="del" onClick={() => onDelete(item.id)} aria-label="Delete">
+        <Icon.x />
+      </button>
+    </li>
+  );
+}
+
+/* ----------------------------- room row ---------------------------- */
+function RoomRow({ room, color, count, active, editing, editName, onSelect, onStartEdit, onEditChange, onEditCommit, onDelete }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: room.id });
+  return (
+    <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)}
+         className={"room-btn" + (active ? " active" : "")}
+         onClick={() => !editing && onSelect()}>
+      <button className="grip room-grip" {...attributes} {...listeners}
+              onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
+        <Icon.grip />
+      </button>
+      <span className="room-dot" style={{ background: color }} />
+      {editing ? (
+        <input autoFocus className="name-input" value={editName}
+               onChange={(e) => onEditChange(e.target.value)}
+               onKeyDown={(e) => e.key === "Enter" && onEditCommit()}
+               onBlur={onEditCommit} />
+      ) : (
+        <span className="room-name">{room.name}</span>
+      )}
+      {active && !editing ? (
+        <span className="room-tools">
+          <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }} aria-label="Rename room"><Icon.pencil /></button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} aria-label="Delete room"><Icon.x /></button>
+        </span>
+      ) : (!editing && <span className="room-count">{count}</span>)}
+    </div>
+  );
+}
+
 /* --------------------------- list column --------------------------- */
 function ListColumn({
-  kind, color, items, onAdd, onToggle, onDelete, onAmount, onRename,
-  onAddSub, onToggleSub, onDeleteSub, onRenameSub,
+  kind, color, items, onAdd, onToggle, onDelete, onAmount, onRename, onReorderList,
+  onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub,
 }) {
   const [val, setVal] = useState("");
   const [amt, setAmt] = useState("");
@@ -331,12 +463,13 @@ function ListColumn({
         <p className="empty">
           {isTask ? "No tasks yet — add the first job for this room." : "Nothing on the shopping list yet."}
         </p>
-      ) : (
-        <ul className="list">
-          {isTask
-            ? [...items]
-                .sort((a, b) => (taskComplete(a) ? 1 : 0) - (taskComplete(b) ? 1 : 0))
-                .map((it) => (
+      ) : isTask ? (
+        (() => {
+          const ordered = [...items].sort((a, b) => (taskComplete(a) ? 1 : 0) - (taskComplete(b) ? 1 : 0));
+          return (
+            <DragList items={ordered} onReorder={onReorderList}>
+              <ul className="list">
+                {ordered.map((it) => (
                   <TaskRow
                     key={it.id}
                     task={it}
@@ -348,31 +481,34 @@ function ListColumn({
                     onToggleSub={onToggleSub}
                     onDeleteSub={onDeleteSub}
                     onRenameSub={onRenameSub}
+                    onReorderSub={onReorderSub}
                   />
-                ))
-            : [...items]
-                .sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0))
-                .map((it) => (
-                  <li key={it.id} className={"item" + (it.done ? " done" : "")}>
-                    <Check done={it.done} color={color} onClick={() => onToggle(it.id)} />
-                    <EditableText className="item-text" value={it.text} onSave={(t) => onRename(it.id, t)} />
-                    {hasAmount && (
-                      <span className="amt-cell">
-                        <input
-                          className="amt-input"
-                          value={it.amount || ""}
-                          onChange={(e) => onAmount(it.id, e.target.value)}
-                          placeholder="—"
-                          aria-label="Amount"
-                        />
-                      </span>
-                    )}
-                    <button className="del" onClick={() => onDelete(it.id)} aria-label="Delete">
-                      <Icon.x />
-                    </button>
-                  </li>
                 ))}
-        </ul>
+              </ul>
+            </DragList>
+          );
+        })()
+      ) : (
+        (() => {
+          const ordered = [...items].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+          return (
+            <DragList items={ordered} onReorder={onReorderList}>
+              <ul className="list">
+                {ordered.map((it) => (
+                  <MaterialRow
+                    key={it.id}
+                    item={it}
+                    color={color}
+                    onToggle={onToggle}
+                    onDelete={onDelete}
+                    onRename={onRename}
+                    onAmount={onAmount}
+                  />
+                ))}
+              </ul>
+            </DragList>
+          );
+        })()
       )}
     </section>
   );
@@ -550,6 +686,16 @@ export default function App() {
       ),
     }));
 
+  // --- drag reordering ---
+  const reorderTasks = (newTasks) => update(active.id, (r) => ({ ...r, tasks: newTasks }));
+  const reorderMaterials = (newMaterials) => update(active.id, (r) => ({ ...r, materials: newMaterials }));
+  const reorderSubtasks = (taskId, newSubs) =>
+    update(active.id, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, subtasks: newSubs } : t)),
+    }));
+  const reorderRooms = (newRooms) => setRooms(newRooms);
+
   const createRoom = () => {
     const name = newName.trim();
     if (!name) { setAdding(false); return; }
@@ -607,46 +753,24 @@ export default function App() {
 
         <div className="side-label">Rooms</div>
 
-        {rooms.map((r, i) => {
-          const c = colorAt(r.ci ?? i);
-          const total = r.tasks.length + r.materials.length;
-          const isActive = r.id === activeId;
-          return (
-            <div
+        <DragList items={rooms} onReorder={reorderRooms}>
+          {rooms.map((r, i) => (
+            <RoomRow
               key={r.id}
-              className={"room-btn" + (isActive ? " active" : "")}
-              onClick={() => editId !== r.id && setActiveId(r.id)}
-            >
-              <span className="room-dot" style={{ background: c.dot }} />
-              {editId === r.id ? (
-                <input
-                  autoFocus
-                  className="name-input"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && renameRoom()}
-                  onBlur={renameRoom}
-                />
-              ) : (
-                <span className="room-name">{r.name}</span>
-              )}
-              {isActive && editId !== r.id ? (
-                <span className="room-tools">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditId(r.id); setEditName(r.name); }}
-                    aria-label="Rename room"
-                  ><Icon.pencil /></button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteRoom(r.id); }}
-                    aria-label="Delete room"
-                  ><Icon.x /></button>
-                </span>
-              ) : (
-                editId !== r.id && <span className="room-count">{total}</span>
-              )}
-            </div>
-          );
-        })}
+              room={r}
+              color={colorAt(r.ci ?? i).dot}
+              count={r.tasks.length + r.materials.length}
+              active={r.id === activeId}
+              editing={editId === r.id}
+              editName={editName}
+              onSelect={() => setActiveId(r.id)}
+              onStartEdit={() => { setEditId(r.id); setEditName(r.name); }}
+              onEditChange={(v) => setEditName(v)}
+              onEditCommit={renameRoom}
+              onDelete={() => deleteRoom(r.id)}
+            />
+          ))}
+        </DragList>
 
         {adding ? (
           <input
@@ -754,10 +878,12 @@ export default function App() {
                     onToggle={(id) => toggleItem("tasks", id)}
                     onDelete={(id) => deleteItem("tasks", id)}
                     onRename={(id, t) => renameItem("tasks", id, t)}
+                    onReorderList={reorderTasks}
                     onAddSub={addSubtask}
                     onToggleSub={toggleSubtask}
                     onDeleteSub={deleteSubtask}
                     onRenameSub={renameSubtask}
+                    onReorderSub={reorderSubtasks}
                   />
                   <ListColumn
                     kind="material"
@@ -767,6 +893,7 @@ export default function App() {
                     onToggle={(id) => toggleItem("materials", id)}
                     onDelete={(id) => deleteItem("materials", id)}
                     onRename={(id, t) => renameItem("materials", id, t)}
+                    onReorderList={reorderMaterials}
                     onAmount={(id, a) => setAmount(id, a)}
                   />
                 </div>
