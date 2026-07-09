@@ -377,8 +377,10 @@ function MaterialRow({ item, color, onToggle, onDelete, onRename, onAmount }) {
 }
 
 /* ----------------------------- room row ---------------------------- */
-function RoomRow({ room, ci, active, editing, editName, onSelect, onStartEdit, onEditChange, onEditCommit, onDelete, onPickColor, count }) {
+function RoomRow({ room, ci, active, editing, editName, onSelect, onStartEdit, onEditChange, onEditCommit, onDelete, onPickColor, tasksDone, tasksTotal }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: room.id });
+  const [showDone, setShowDone] = useState(false);
+  const color = colorAt(ci);
   return (
     <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)}
          className={"room-btn" + (active ? " active" : "")}
@@ -401,7 +403,21 @@ function RoomRow({ room, ci, active, editing, editName, onSelect, onStartEdit, o
           <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }} aria-label="Rename room"><Icon.pencil /></button>
           <button onClick={(e) => { e.stopPropagation(); onDelete(); }} aria-label="Delete room"><Icon.x /></button>
         </span>
-      ) : (!editing && <span className="room-count">{count}</span>)}
+      ) : (!editing && (
+        <span className="room-badge">
+          <span className="room-pill" style={{ background: color.chip, color: color.ink }}>
+            {showDone ? `${tasksDone}/${tasksTotal}` : tasksTotal}
+          </span>
+          <button
+            type="button"
+            className={"room-badge-toggle" + (showDone ? " open" : "")}
+            onClick={(e) => { e.stopPropagation(); setShowDone((o) => !o); }}
+            aria-label={showDone ? "Hide tasks done" : "Show tasks done"}
+          >
+            <Icon.caret width={14} height={14} />
+          </button>
+        </span>
+      ))}
     </div>
   );
 }
@@ -870,7 +886,8 @@ export default function App() {
               key={r.id}
               room={r}
               ci={r.ci ?? i}
-              count={r.tasks.length + r.materials.length}
+              tasksDone={r.tasks.filter(taskComplete).length}
+              tasksTotal={r.tasks.length}
               active={view === "room" && r.id === activeId}
               editing={editId === r.id}
               editName={editName}
