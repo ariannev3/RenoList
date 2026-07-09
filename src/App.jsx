@@ -26,6 +26,55 @@ const ROOM_COLORS = [
 ];
 const colorAt = (i) => ROOM_COLORS[i % ROOM_COLORS.length];
 
+/* ------------------------------ i18n -------------------------------- */
+const LANG_KEY = "reno-lang";
+const TRANSLATIONS = {
+  en: {
+    dashboard: "Dashboard", settings: "Settings", rooms: "Rooms", newRoom: "New room",
+    roomNamePlaceholder: "Room name…", wholeProject: "Whole project",
+    overview: "Overview", wholeProjectTasks: "Whole project — tasks complete",
+    roomsCount: (n) => `${n} room${n === 1 ? "" : "s"} · renovation progress`,
+    tasksWord: "tasks", materialsWord: "materials", doneWord: "done", boughtWord: "bought",
+    tasksColTitle: "Tasks", materialsColTitle: "Materials",
+    addTaskPh: "Add a task…", addMaterialPh: "Add a material…", amount: "Amount", material: "Material",
+    noTasksYet: "No tasks yet — add the first job for this room.",
+    noMaterialsYet: "Nothing on the shopping list yet.",
+    subtaskBtn: "Subtask", addSubtaskPh: "Add a subtask…",
+    tasksDone: "Tasks done", stillToDo: (n) => `${n} still to do`,
+    materialsBought: "Materials bought", leftToBuy: (n) => `${n} left to buy`,
+    taskProgress: "Task progress", ofRoomsTasks: "of this room's tasks",
+    noRoomsTitle: "No rooms yet", noRoomsBody: "Add a room to start tracking its tasks and materials.",
+    addFirstRoom: "Add your first room",
+    connecting: "Connecting…", live: "Live · shared board", offline: "Offline — not saving",
+    settingsTitle: "Settings", settingsSubtitle: "Preferences for this device",
+    languageLbl: "Language", languageSub: "Changes the text shown throughout the board on this device.",
+    english: "English", dutch: "Nederlands",
+    statusLbl: "Board status", statusSub: "Whether changes are syncing to the shared database.",
+  },
+  nl: {
+    dashboard: "Dashboard", settings: "Instellingen", rooms: "Kamers", newRoom: "Nieuwe kamer",
+    roomNamePlaceholder: "Kamernaam…", wholeProject: "Hele project",
+    overview: "Overzicht", wholeProjectTasks: "Hele project — taken voltooid",
+    roomsCount: (n) => `${n} kamer${n === 1 ? "" : "s"} · renovatievoortgang`,
+    tasksWord: "taken", materialsWord: "materialen", doneWord: "klaar", boughtWord: "gekocht",
+    tasksColTitle: "Taken", materialsColTitle: "Materialen",
+    addTaskPh: "Taak toevoegen…", addMaterialPh: "Materiaal toevoegen…", amount: "Aantal", material: "Materiaal",
+    noTasksYet: "Nog geen taken — voeg de eerste klus voor deze kamer toe.",
+    noMaterialsYet: "Nog niets op het boodschappenlijstje.",
+    subtaskBtn: "Subtaak", addSubtaskPh: "Subtaak toevoegen…",
+    tasksDone: "Taken klaar", stillToDo: (n) => `${n} nog te doen`,
+    materialsBought: "Materialen gekocht", leftToBuy: (n) => `${n} nog te kopen`,
+    taskProgress: "Taakvoortgang", ofRoomsTasks: "van de taken in deze kamer",
+    noRoomsTitle: "Nog geen kamers", noRoomsBody: "Voeg een kamer toe om taken en materialen bij te houden.",
+    addFirstRoom: "Voeg je eerste kamer toe",
+    connecting: "Verbinden…", live: "Live · gedeeld bord", offline: "Offline — wordt niet opgeslagen",
+    settingsTitle: "Instellingen", settingsSubtitle: "Voorkeuren voor dit apparaat",
+    languageLbl: "Taal", languageSub: "Wijzigt de tekst die op het bord wordt getoond op dit apparaat.",
+    english: "English", dutch: "Nederlands",
+    statusLbl: "Bordstatus", statusSub: "Of wijzigingen worden gesynchroniseerd met de gedeelde database.",
+  },
+};
+
 const seed = () => [
   {
     id: uid(), name: "Kitchen", ci: 0,
@@ -90,6 +139,13 @@ const Icon = {
   home: (p) => (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
       <path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  ),
+  settings: (p) => (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M19.4 13.5c.1-.5.1-1 0-1.5l1.6-1.2-1.6-2.8-1.9.5a5.6 5.6 0 00-1.3-.75l-.3-2h-3.2l-.3 2a5.6 5.6 0 00-1.3.75l-1.9-.5-1.6 2.8 1.6 1.2c-.1.5-.1 1 0 1.5L7 14.7l1.6 2.8 1.9-.5a5.6 5.6 0 001.3.75l.3 2h3.2l.3-2a5.6 5.6 0 001.3-.75l1.9.5 1.6-2.8-1.6-1.2z"
+            stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
     </svg>
   ),
   check: (p) => (
@@ -248,7 +304,7 @@ function SubtaskRow({ sub, taskId, color, onToggle, onDelete, onRename }) {
 }
 
 /* ----------------------------- task row ---------------------------- */
-function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub }) {
+function TaskRow({ task, color, tr, onToggle, onDelete, onRename, onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub }) {
   const subs = task.subtasks || [];
   const hasSubs = subs.length > 0;
   const complete = taskComplete(task);
@@ -335,12 +391,12 @@ function TaskRow({ task, color, onToggle, onDelete, onRename, onAddSub, onToggle
                   if (e.key === "Escape") { setAdding(false); setText(""); }
                 }}
                 onBlur={submitSub}
-                placeholder="Add a subtask…"
+                placeholder={tr.addSubtaskPh}
               />
             </div>
           ) : (
             <button className="sub-add-btn" onClick={() => setAdding(true)}>
-              <Icon.plus /> Subtask
+              <Icon.plus /> {tr.subtaskBtn}
             </button>
           )}
         </>
@@ -449,7 +505,7 @@ function ColorPicker({ ci, onPick, size = "sm" }) {
 
 /* --------------------------- list column --------------------------- */
 function ListColumn({
-  kind, color, items, onAdd, onToggle, onDelete, onAmount, onRename, onReorderList,
+  kind, color, items, tr, onAdd, onToggle, onDelete, onAmount, onRename, onReorderList,
   onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub,
 }) {
   const [val, setVal] = useState("");
@@ -472,8 +528,8 @@ function ListColumn({
         <div className="col-ic" style={{ background: color.chip, color: color.ink }}>
           {isTask ? <Icon.tasks /> : <Icon.cart />}
         </div>
-        <span className="col-title">{isTask ? "Tasks" : "Materials"}</span>
-        <span className="col-badge">{done}/{items.length} {isTask ? "done" : "bought"}</span>
+        <span className="col-title">{isTask ? tr.tasksColTitle : tr.materialsColTitle}</span>
+        <span className="col-badge">{done}/{items.length} {isTask ? tr.doneWord : tr.boughtWord}</span>
       </div>
 
       <div className="add-row">
@@ -482,7 +538,7 @@ function ListColumn({
           value={val}
           onChange={(e) => setVal(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder={isTask ? "Add a task…" : "Add a material…"}
+          placeholder={isTask ? tr.addTaskPh : tr.addMaterialPh}
         />
         {hasAmount && (
           <input
@@ -490,7 +546,7 @@ function ListColumn({
             value={amt}
             onChange={(e) => setAmt(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Amount"
+            placeholder={tr.amount}
           />
         )}
         <button className="add-btn" style={{ background: color.dot }} onClick={submit} aria-label="Add">
@@ -500,14 +556,14 @@ function ListColumn({
 
       {hasAmount && items.length > 0 && (
         <div className="list-head">
-          <span>Material</span>
-          <span className="lh-amt">Amount</span>
+          <span>{tr.material}</span>
+          <span className="lh-amt">{tr.amount}</span>
         </div>
       )}
 
       {items.length === 0 ? (
         <p className="empty">
-          {isTask ? "No tasks yet — add the first job for this room." : "Nothing on the shopping list yet."}
+          {isTask ? tr.noTasksYet : tr.noMaterialsYet}
         </p>
       ) : isTask ? (
         (() => {
@@ -520,6 +576,7 @@ function ListColumn({
                     key={it.id}
                     task={it}
                     color={color}
+                    tr={tr}
                     onToggle={onToggle}
                     onDelete={onDelete}
                     onRename={onRename}
@@ -579,19 +636,19 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
 }
 
 /* ------------------------------ home -------------------------------- */
-function Home({ rooms, pct, overall, onOpenRoom, onAddRoom }) {
+function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom }) {
   return (
     <main className="main">
       <div className="head">
         <div>
-          <h1 className="title">Overview</h1>
-          <p className="subtitle">{rooms.length} room{rooms.length === 1 ? "" : "s"} · renovation progress</p>
+          <h1 className="title">{tr.overview}</h1>
+          <p className="subtitle">{tr.roomsCount(rooms.length)}</p>
         </div>
       </div>
 
       <div className="home-overall">
         <div className="home-overall-top">
-          <span className="home-overall-lbl">Whole project — tasks complete</span>
+          <span className="home-overall-lbl">{tr.wholeProjectTasks}</span>
           <span className="home-overall-pct">{overall}%</span>
         </div>
         <div className="bar home-overall-bar">
@@ -620,8 +677,8 @@ function Home({ rooms, pct, overall, onOpenRoom, onAddRoom }) {
                 <i style={{ width: p + "%", background: c.dot }} />
               </div>
               <div className="room-card-meta">
-                <span>{tDone}/{r.tasks.length} tasks</span>
-                <span>{mDone}/{r.materials.length} materials</span>
+                <span>{tDone}/{r.tasks.length} {tr.tasksWord}</span>
+                <span>{mDone}/{r.materials.length} {tr.materialsWord}</span>
               </div>
             </button>
           );
@@ -629,8 +686,57 @@ function Home({ rooms, pct, overall, onOpenRoom, onAddRoom }) {
 
         <button className="room-card room-card-add" onClick={onAddRoom}>
           <Icon.plus />
-          <span>New room</span>
+          <span>{tr.newRoom}</span>
         </button>
+      </div>
+    </main>
+  );
+}
+
+/* ---------------------------- settings ------------------------------ */
+function Settings({ tr, lang, onSetLang, status, syncLabel }) {
+  return (
+    <main className="main">
+      <div className="head">
+        <div>
+          <h1 className="title">{tr.settingsTitle}</h1>
+          <p className="subtitle">{tr.settingsSubtitle}</p>
+        </div>
+      </div>
+
+      <div className="settings-list">
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <h2>{tr.languageLbl}</h2>
+            <p>{tr.languageSub}</p>
+          </div>
+          <div className="lang-options">
+            <button
+              type="button"
+              className={"lang-opt" + (lang === "en" ? " active" : "")}
+              onClick={() => onSetLang("en")}
+            >
+              {tr.english}
+            </button>
+            <button
+              type="button"
+              className={"lang-opt" + (lang === "nl" ? " active" : "")}
+              onClick={() => onSetLang("nl")}
+            >
+              {tr.dutch}
+            </button>
+          </div>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <h2>{tr.statusLbl}</h2>
+            <p>{tr.statusSub}</p>
+          </div>
+          <span className={"sync sync-" + status}>
+            <i /> {syncLabel}
+          </span>
+        </section>
       </div>
     </main>
   );
@@ -642,7 +748,14 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState("connecting"); // connecting | live | offline
   const [activeId, setActiveId] = useState(null);
-  const [view, setView] = useState("home"); // "home" | "room"
+  const [view, setView] = useState("home"); // "home" | "room" | "settings"
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem(LANG_KEY) || "en"; } catch { return "en"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(LANG_KEY, lang); } catch { /* ignore */ }
+  }, [lang]);
+  const tr = TRANSLATIONS[lang] || TRANSLATIONS.en;
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState(null);
@@ -842,9 +955,9 @@ export default function App() {
   };
 
   const syncLabel =
-    status === "live" ? "Live · shared board"
-    : status === "offline" ? "Offline — not saving"
-    : "Connecting…";
+    status === "live" ? tr.live
+    : status === "offline" ? tr.offline
+    : tr.connecting;
 
   if (!isConfigured) return <SetupNotice />;
 
@@ -861,10 +974,10 @@ export default function App() {
           className={"home-btn" + (view === "home" ? " active" : "")}
           onClick={() => setView("home")}
         >
-          <Icon.home /> Dashboard
+          <Icon.home /> {tr.dashboard}
         </button>
 
-        <div className="side-label">Rooms</div>
+        <div className="side-label">{tr.rooms}</div>
 
         <DragList items={rooms} onReorder={reorderRooms}>
           {rooms.map((r, i) => (
@@ -899,36 +1012,45 @@ export default function App() {
               if (e.key === "Escape") { setAdding(false); setNewName(""); }
             }}
             onBlur={createRoom}
-            placeholder="Room name…"
+            placeholder={tr.roomNamePlaceholder}
           />
         ) : (
           <button className="add-room" onClick={() => setAdding(true)}>
-            <Icon.plus /> New room
+            <Icon.plus /> {tr.newRoom}
           </button>
         )}
 
         <div className="side-foot">
           <div className="overall">
             <div className="overall-top">
-              <span className="overall-lbl">Whole project</span>
+              <span className="overall-lbl">{tr.wholeProject}</span>
               <span className="overall-pct">{overall()}%</span>
             </div>
             <div className="bar">
               <i style={{ width: overall() + "%", background: "linear-gradient(90deg,#EFC85F,#EE9BBC,#89B4EF)" }} />
             </div>
           </div>
+
+          <button
+            className={"settings-btn" + (view === "settings" ? " active" : "")}
+            onClick={() => setView("settings")}
+          >
+            <Icon.settings /> {tr.settings}
+          </button>
         </div>
       </aside>
 
       {/* ---------------- main ---------------- */}
       {!loaded ? (
         <main className="main loading"><div className="spinner" /></main>
+      ) : view === "settings" ? (
+        <Settings tr={tr} lang={lang} onSetLang={setLang} status={status} syncLabel={syncLabel} />
       ) : rooms.length === 0 ? (
         <main className="main">
           <div className="blank">
-            <h2>No rooms yet</h2>
-            <p>Add a room to start tracking its tasks and materials.</p>
-            <button onClick={() => setAdding(true)}>Add your first room</button>
+            <h2>{tr.noRoomsTitle}</h2>
+            <p>{tr.noRoomsBody}</p>
+            <button onClick={() => setAdding(true)}>{tr.addFirstRoom}</button>
           </div>
         </main>
       ) : view === "home" ? (
@@ -936,6 +1058,7 @@ export default function App() {
           rooms={rooms}
           pct={pct}
           overall={overall()}
+          tr={tr}
           onOpenRoom={(id) => { setActiveId(id); setView("room"); }}
           onAddRoom={() => setAdding(true)}
         />
@@ -956,35 +1079,30 @@ export default function App() {
                     <div>
                       <h1 className="title">{active.name}</h1>
                       <p className="subtitle">
-                        {active.tasks.length} tasks · {active.materials.length} materials
+                        {active.tasks.length} {tr.tasksWord} · {active.materials.length} {tr.materialsWord}
                       </p>
                     </div>
-                  </div>
-                  <div className="head-right">
-                    <span className={"sync sync-" + status}>
-                      <i /> {syncLabel}
-                    </span>
                   </div>
                 </div>
 
                 <div className="stats">
                   <div className="stat" style={{ background: STAT.lav.chip, color: STAT.lav.ink }}>
                     <div className="stat-ic"><Icon.tasks /></div>
-                    <div className="stat-lbl">Tasks done</div>
+                    <div className="stat-lbl">{tr.tasksDone}</div>
                     <div className="stat-num">{tDone}<span style={{ opacity: .5, fontSize: 20 }}> / {active.tasks.length}</span></div>
-                    <div className="stat-sub">{active.tasks.length - tDone} still to do</div>
+                    <div className="stat-sub">{tr.stillToDo(active.tasks.length - tDone)}</div>
                   </div>
                   <div className="stat" style={{ background: STAT.peach.chip, color: STAT.peach.ink }}>
                     <div className="stat-ic"><Icon.cart /></div>
-                    <div className="stat-lbl">Materials bought</div>
+                    <div className="stat-lbl">{tr.materialsBought}</div>
                     <div className="stat-num">{mDone}<span style={{ opacity: .5, fontSize: 20 }}> / {active.materials.length}</span></div>
-                    <div className="stat-sub">{active.materials.length - mDone} left to buy</div>
+                    <div className="stat-sub">{tr.leftToBuy(active.materials.length - mDone)}</div>
                   </div>
                   <div className="stat" style={{ background: STAT.sky.chip, color: STAT.sky.ink }}>
                     <div className="stat-ic"><Icon.check /></div>
-                    <div className="stat-lbl">Task progress</div>
+                    <div className="stat-lbl">{tr.taskProgress}</div>
                     <div className="stat-num">{p}%</div>
-                    <div className="stat-sub">of this room's tasks</div>
+                    <div className="stat-sub">{tr.ofRoomsTasks}</div>
                   </div>
                 </div>
 
@@ -992,6 +1110,7 @@ export default function App() {
                   <ListColumn
                     kind="task"
                     color={c}
+                    tr={tr}
                     items={active.tasks}
                     onAdd={(t) => addItem("tasks", t)}
                     onToggle={(id) => toggleItem("tasks", id)}
@@ -1007,6 +1126,7 @@ export default function App() {
                   <ListColumn
                     kind="material"
                     color={c}
+                    tr={tr}
                     items={active.materials}
                     onAdd={(t, a) => addItem("materials", t, a)}
                     onToggle={(id) => toggleItem("materials", id)}
