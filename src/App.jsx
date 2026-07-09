@@ -719,14 +719,13 @@ export default function App() {
   };
 
   const pct = (r) => {
-    const flags = [...r.tasks.map(taskComplete), ...r.materials.map((m) => !!m.done)];
-    if (!flags.length) return 0;
-    return Math.round((flags.filter(Boolean).length / flags.length) * 100);
+    if (!r.tasks.length) return 0;
+    return Math.round((r.tasks.filter(taskComplete).length / r.tasks.length) * 100);
   };
   const overall = () => {
-    const flags = rooms.flatMap((r) => [...r.tasks.map(taskComplete), ...r.materials.map((m) => !!m.done)]);
-    if (!flags.length) return 0;
-    return Math.round((flags.filter(Boolean).length / flags.length) * 100);
+    const tasks = rooms.flatMap((r) => r.tasks);
+    if (!tasks.length) return 0;
+    return Math.round((tasks.filter(taskComplete).length / tasks.length) * 100);
   };
 
   const STAT = {
@@ -836,15 +835,6 @@ export default function App() {
                     <span className={"sync sync-" + status}>
                       <i /> {syncLabel}
                     </span>
-                    <div className="head-progress">
-                      <div className="hp-row">
-                        <span className="hp-pct" style={{ color: c.ink }}>{p}%</span>
-                        <span className="hp-lbl">complete</span>
-                      </div>
-                      <div className="bar hp-bar" style={{ background: "rgba(38,35,29,.08)" }}>
-                        <i style={{ width: p + "%", background: c.dot }} />
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -863,9 +853,9 @@ export default function App() {
                   </div>
                   <div className="stat" style={{ background: STAT.sky.chip, color: STAT.sky.ink }}>
                     <div className="stat-ic"><Icon.check /></div>
-                    <div className="stat-lbl">Room progress</div>
+                    <div className="stat-lbl">Task progress</div>
                     <div className="stat-num">{p}%</div>
-                    <div className="stat-sub">across tasks & materials</div>
+                    <div className="stat-sub">of this room's tasks</div>
                   </div>
                 </div>
 
