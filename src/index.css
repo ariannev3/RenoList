@@ -129,6 +129,39 @@ body { background: #F1EBDD; overflow-x: hidden; }
   color:var(--muted); background:var(--card); border:1px dashed var(--line); min-height:96px; }
 .room-card-add:hover { color:var(--ink); border-color:rgba(38,35,29,.25); box-shadow:none; transform:none; }
 
+/* planner */
+.planner { margin-top:30px; }
+.planner-head { margin-bottom:14px; }
+.planner-head h2 { font-size:18px; font-weight:800; letter-spacing:-.01em; margin:0 0 3px; }
+.planner-head p { font-size:13px; color:var(--muted); margin:0; }
+.planner-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
+.planner-col { background:var(--card); border:1px solid var(--line); border-radius:18px;
+  padding:14px; display:flex; flex-direction:column; min-height:180px; }
+.planner-col.tray { background:var(--cream); border-style:dashed; }
+.planner-col-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  font-size:13px; font-weight:700; color:var(--ink); }
+.planner-count { font-size:11px; font-weight:600; color:var(--muted); background:#fff;
+  padding:2px 8px; border-radius:999px; font-variant-numeric:tabular-nums; }
+.planner-col-body { display:flex; flex-direction:column; gap:8px; flex:1; min-height:44px; }
+.planner-empty { font-size:12px; color:var(--muted); text-align:center; padding:14px 6px; margin:0; }
+.planner-dropzone { flex:1; min-height:14px; border-radius:10px; transition:background .12s; }
+.planner-dropzone.over { background:rgba(38,35,29,.07); }
+.planner-card { display:flex; align-items:center; gap:8px; background:var(--cream);
+  border:1px solid transparent; border-radius:13px; padding:8px 9px 8px 4px; transition:border-color .12s; }
+.planner-card:hover { border-color:var(--line); }
+.planner-card:hover .grip { opacity:1; }
+.planner-card-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.planner-card-text { font-size:13.5px; font-weight:600; color:var(--ink); word-break:break-word; }
+.planner-card-room { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--muted); }
+.planner-card-dot { width:7px; height:7px; border-radius:50%; flex:0 0 7px; }
+@media (max-width: 900px) {
+  .planner-grid { grid-template-columns:repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .planner-grid { display:flex; overflow-x:auto; gap:12px; padding-bottom:6px; scroll-snap-type:x proximity; }
+  .planner-col { flex:0 0 82vw; scroll-snap-align:start; }
+}
+
 /* settings page */
 .settings-list { display:flex; flex-direction:column; gap:16px; max-width:520px; }
 .settings-card { background:var(--card); border:1px solid var(--line); border-radius:20px;

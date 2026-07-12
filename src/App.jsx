@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, isConfigured } from "./supabaseClient";
 import {
-  DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors,
+  DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable, sortableKeyboardCoordinates,
@@ -50,6 +50,10 @@ const TRANSLATIONS = {
     languageLbl: "Language", languageSub: "Changes the text shown throughout the board on this device.",
     english: "English", dutch: "Nederlands",
     statusLbl: "Board status", statusSub: "Whether changes are syncing to the shared database.",
+    planner: "Planner", plannerSub: "Drag your open tasks into when you want to do them.",
+    bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketWeek: "This week", bucketLater: "Later",
+    plannerEmptyPool: "All open tasks land here until you plan them.",
+    plannerEmptyBucket: "Drag tasks here",
   },
   nl: {
     dashboard: "Dashboard", settings: "Instellingen", rooms: "Kamers", newRoom: "Nieuwe kamer",
@@ -72,6 +76,10 @@ const TRANSLATIONS = {
     languageLbl: "Taal", languageSub: "Wijzigt de tekst die op het bord wordt getoond op dit apparaat.",
     english: "English", dutch: "Nederlands",
     statusLbl: "Bordstatus", statusSub: "Of wijzigingen worden gesynchroniseerd met de gedeelde database.",
+    planner: "Planning", plannerSub: "Sleep je openstaande taken naar wanneer je ze wilt doen.",
+    bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketWeek: "Deze week", bucketLater: "Later",
+    plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
+    plannerEmptyBucket: "Sleep taken hierheen",
   },
 };
 
@@ -286,6 +294,108 @@ const dragStyle = (transform, transition, isDragging) => ({
   zIndex: isDragging ? 20 : undefined,
   position: isDragging ? "relative" : undefined,
 });
+
+/* ------------------------------ planner ------------------------------ */
+const PLAN_BUCKETS = ["unscheduled", "today", "week", "later"];
+
+// Flattens every open (not-done) task across every room into one list,
+// each tagged with its room's colour/name and its planner bucket.
+function flattenOpenTasks(rooms) {
+  const flat = [];
+  rooms.forEach((r, ri) => {
+    const color = colorAt(r.ci ?? ri);
+    (r.tasks || []).forEach((t) => {
+      if (taskComplete(t)) return;
+      flat.push({
+        id: `${r.id}::${t.id}`,
+        roomId: r.id, taskId: t.id, roomName: r.name, color,
+        text: t.text, bucket: t.plan || "unscheduled", order: t.planOrder ?? 0,
+      });
+    });
+  });
+  return flat;
+}
+
+function PlannerDropZone({ bucket }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "col:" + bucket });
+  return <div ref={setNodeRef} className={"planner-dropzone" + (isOver ? " over" : "")} />;
+}
+
+function PlannerCard({ item, onToggle }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  return (
+    <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="planner-card">
+      <button className="grip" {...attributes} {...listeners} aria-label="Drag">
+        <Icon.grip />
+      </button>
+      <Check done={false} color={item.color} onClick={() => onToggle(item.roomId, item.taskId)} />
+      <div className="planner-card-body">
+        <span className="planner-card-text">{item.text}</span>
+        <span className="planner-card-room">
+          <span className="planner-card-dot" style={{ background: item.color.dot }} />
+          {item.roomName}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Planner({ rooms, tr, onToggleTask, onMove }) {
+  const flat = flattenOpenTasks(rooms);
+  const byBucket = {};
+  PLAN_BUCKETS.forEach((b) => {
+    byBucket[b] = flat.filter((x) => x.bucket === b).sort((a, b2) => a.order - b2.order);
+  });
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    onMove(active.id, over.id);
+  };
+
+  const labels = {
+    unscheduled: tr.bucketUnscheduled, today: tr.bucketToday, week: tr.bucketWeek, later: tr.bucketLater,
+  };
+
+  return (
+    <section className="planner">
+      <div className="planner-head">
+        <h2>{tr.planner}</h2>
+        <p>{tr.plannerSub}</p>
+      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEnd}>
+        <div className="planner-grid">
+          {PLAN_BUCKETS.map((bucket) => (
+            <div key={bucket} className={"planner-col" + (bucket === "unscheduled" ? " tray" : "")}>
+              <div className="planner-col-head">
+                <span>{labels[bucket]}</span>
+                <span className="planner-count">{byBucket[bucket].length}</span>
+              </div>
+              <SortableContext items={byBucket[bucket].map((x) => x.id)} strategy={verticalListSortingStrategy}>
+                <div className="planner-col-body">
+                  {byBucket[bucket].length === 0 && (
+                    <p className="planner-empty">
+                      {bucket === "unscheduled" ? tr.plannerEmptyPool : tr.plannerEmptyBucket}
+                    </p>
+                  )}
+                  {byBucket[bucket].map((item) => (
+                    <PlannerCard key={item.id} item={item} onToggle={onToggleTask} />
+                  ))}
+                  <PlannerDropZone bucket={bucket} />
+                </div>
+              </SortableContext>
+            </div>
+          ))}
+        </div>
+      </DndContext>
+    </section>
+  );
+}
 
 /* ----------------------------- subtask row ------------------------- */
 function SubtaskRow({ sub, taskId, color, onToggle, onDelete, onRename }) {
@@ -638,7 +748,7 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
 }
 
 /* ------------------------------ home -------------------------------- */
-function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom }) {
+function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onMoveTask }) {
   return (
     <main className="main">
       <div className="head">
@@ -691,6 +801,8 @@ function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom }) {
           <span>{tr.newRoom}</span>
         </button>
       </div>
+
+      <Planner rooms={rooms} tr={tr} onToggleTask={onToggleTask} onMove={onMoveTask} />
     </main>
   );
 }
@@ -916,6 +1028,50 @@ export default function App() {
     }));
   const reorderRooms = (newRooms) => setRooms(newRooms);
 
+  // --- planner (cross-room) ---
+  // Toggle a task's done state by room id, not just the currently open room.
+  const togglePlannerTask = (roomId, taskId) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)),
+    }));
+
+  // Move/reorder a task between planner buckets (or within one). activeId/overId
+  // are composite "roomId::taskId" strings, or overId can be "col:<bucket>" when
+  // dropping into an empty (or trailing) part of a column.
+  const movePlannerTask = (activeId, overId) => {
+    const flat = flattenOpenTasks(rooms);
+    const activeItem = flat.find((x) => x.id === activeId);
+    if (!activeItem) return;
+
+    let bucket, destExcludingActive, insertAt;
+    if (overId.startsWith("col:")) {
+      bucket = overId.slice(4);
+      destExcludingActive = flat.filter((x) => x.bucket === bucket && x.id !== activeId);
+      insertAt = destExcludingActive.length; // append at end
+    } else {
+      const overItem = flat.find((x) => x.id === overId);
+      if (!overItem) return;
+      bucket = overItem.bucket;
+      destExcludingActive = flat.filter((x) => x.bucket === bucket && x.id !== activeId);
+      insertAt = destExcludingActive.findIndex((x) => x.id === overId);
+      if (insertAt === -1) insertAt = destExcludingActive.length;
+    }
+
+    const newOrder = [...destExcludingActive];
+    newOrder.splice(insertAt, 0, activeItem);
+    const planValue = bucket === "unscheduled" ? null : bucket;
+
+    setRooms((rs) => rs.map((r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => {
+        const idx = newOrder.findIndex((x) => x.roomId === r.id && x.taskId === t.id);
+        if (idx === -1) return t;
+        return { ...t, plan: planValue, planOrder: idx };
+      }),
+    })));
+  };
+
   const createRoom = () => {
     const name = newName.trim();
     if (!name) { setAdding(false); return; }
@@ -1063,6 +1219,8 @@ export default function App() {
           tr={tr}
           onOpenRoom={(id) => { setActiveId(id); setView("room"); }}
           onAddRoom={() => setAdding(true)}
+          onToggleTask={togglePlannerTask}
+          onMoveTask={movePlannerTask}
         />
       ) : !active ? (
         <main className="main loading"><div className="spinner" /></main>
