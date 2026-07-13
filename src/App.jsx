@@ -51,7 +51,7 @@ const TRANSLATIONS = {
     english: "English", dutch: "Nederlands",
     statusLbl: "Board status", statusSub: "Whether changes are syncing to the shared database.",
     planner: "Planner", plannerSub: "Drag your open tasks into when you want to do them.",
-    bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketWeek: "This week", bucketLater: "Later",
+    bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketNextWeek: "Next week",
     plannerEmptyPool: "All open tasks land here until you plan them.",
     plannerEmptyBucket: "Drag tasks here",
   },
@@ -77,7 +77,7 @@ const TRANSLATIONS = {
     english: "English", dutch: "Nederlands",
     statusLbl: "Bordstatus", statusSub: "Of wijzigingen worden gesynchroniseerd met de gedeelde database.",
     planner: "Planning", plannerSub: "Sleep je openstaande taken naar wanneer je ze wilt doen.",
-    bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketWeek: "Deze week", bucketLater: "Later",
+    bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketNextWeek: "Volgende week",
     plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
     plannerEmptyBucket: "Sleep taken hierheen",
   },
@@ -296,10 +296,10 @@ const dragStyle = (transform, transition, isDragging) => ({
 });
 
 /* ------------------------------ planner ------------------------------ */
-const PLAN_BUCKETS = ["unscheduled", "today", "week", "later"];
+const PLAN_BUCKETS = ["unscheduled", "today", "tomorrow", "nextWeek"];
 
 // Flattens every open (not-done) task across every room into one list,
-// each tagged with its room's colour/name and its planner bucket.
+// each tagged with its room's colour/name, its subtasks, and its planner bucket.
 function flattenOpenTasks(rooms) {
   const flat = [];
   rooms.forEach((r, ri) => {
@@ -309,7 +309,8 @@ function flattenOpenTasks(rooms) {
       flat.push({
         id: `${r.id}::${t.id}`,
         roomId: r.id, taskId: t.id, roomName: r.name, color,
-        text: t.text, bucket: t.plan || "unscheduled", order: t.planOrder ?? 0,
+        text: t.text, subtasks: t.subtasks || [],
+        bucket: t.plan || "unscheduled", order: t.planOrder ?? 0,
       });
     });
   });
@@ -321,31 +322,77 @@ function PlannerDropZone({ bucket }) {
   return <div ref={setNodeRef} className={"planner-dropzone" + (isOver ? " over" : "")} />;
 }
 
-function PlannerCard({ item, onToggle }) {
+function PlannerCard({ item, onToggle, onToggleSub }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const subs = item.subtasks || [];
   return (
     <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="planner-card">
       <button className="grip" {...attributes} {...listeners} aria-label="Drag">
         <Icon.grip />
       </button>
-      <Check done={false} color={item.color} onClick={() => onToggle(item.roomId, item.taskId)} />
-      <div className="planner-card-body">
-        <span className="planner-card-text">{item.text}</span>
-        <span className="planner-card-room">
-          <span className="planner-card-dot" style={{ background: item.color.dot }} />
-          {item.roomName}
-        </span>
+      <div className="planner-card-main">
+        <div className="planner-card-row">
+          <Check done={false} color={item.color} onClick={() => onToggle(item.roomId, item.taskId)} />
+          <div className="planner-card-body">
+            <span className="planner-card-text">{item.text}</span>
+            <span className="planner-card-room">
+              <span className="planner-card-dot" style={{ background: item.color.dot }} />
+              {item.roomName}
+            </span>
+          </div>
+        </div>
+        {subs.length > 0 && (
+          <ul className="planner-sublist">
+            {subs.map((s) => (
+              <li key={s.id} className={"planner-subitem" + (s.done ? " done" : "")}>
+                <Check small done={s.done} color={item.color} onClick={() => onToggleSub(item.roomId, item.taskId, s.id)} />
+                <span className="planner-sub-text">{s.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
 }
 
-function Planner({ rooms, tr, onToggleTask, onMove }) {
+// The unscheduled pool grouped by room, collapsed by default — click a room
+// to reveal its open tasks (and drag them out to plan them).
+function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask, onToggleSub }) {
+  return (
+    <div className="planner-room-group">
+      <button type="button" className="planner-room-head" onClick={onToggleExpand}>
+        <span className="planner-room-dot" style={{ background: room.color.dot }} />
+        <span className="planner-room-name">{room.name}</span>
+        <span className="planner-room-count">{items.length}</span>
+        <Icon.caret className={"planner-room-caret" + (expanded ? " open" : "")} />
+      </button>
+      {expanded && (
+        <div className="planner-room-tasks">
+          {items.map((item) => (
+            <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onToggleSub={onToggleSub} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
   const flat = flattenOpenTasks(rooms);
   const byBucket = {};
   PLAN_BUCKETS.forEach((b) => {
     byBucket[b] = flat.filter((x) => x.bucket === b).sort((a, b2) => a.order - b2.order);
   });
+
+  // Which rooms are expanded in the Unscheduled tray (collapsed by default).
+  const [expandedRooms, setExpandedRooms] = useState(() => new Set());
+  const toggleRoomExpanded = (roomId) =>
+    setExpandedRooms((prev) => {
+      const next = new Set(prev);
+      next.has(roomId) ? next.delete(roomId) : next.add(roomId);
+      return next;
+    });
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -359,8 +406,21 @@ function Planner({ rooms, tr, onToggleTask, onMove }) {
   };
 
   const labels = {
-    unscheduled: tr.bucketUnscheduled, today: tr.bucketToday, week: tr.bucketWeek, later: tr.bucketLater,
+    unscheduled: tr.bucketUnscheduled, today: tr.bucketToday,
+    tomorrow: tr.bucketTomorrow, nextWeek: tr.bucketNextWeek,
   };
+
+  // Group the unscheduled pool by room, preserving room order, skipping empty rooms.
+  const unscheduledByRoom = rooms
+    .map((r, ri) => ({
+      room: { id: r.id, name: r.name, color: colorAt(r.ci ?? ri) },
+      items: byBucket.unscheduled.filter((x) => x.roomId === r.id),
+    }))
+    .filter((g) => g.items.length > 0);
+
+  const visibleUnscheduledIds = unscheduledByRoom
+    .filter((g) => expandedRooms.has(g.room.id))
+    .flatMap((g) => g.items.map((x) => x.id));
 
   return (
     <section className="planner">
@@ -370,27 +430,51 @@ function Planner({ rooms, tr, onToggleTask, onMove }) {
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEnd}>
         <div className="planner-grid">
-          {PLAN_BUCKETS.map((bucket) => (
-            <div key={bucket} className={"planner-col" + (bucket === "unscheduled" ? " tray" : "")}>
-              <div className="planner-col-head">
-                <span>{labels[bucket]}</span>
-                <span className="planner-count">{byBucket[bucket].length}</span>
-              </div>
-              <SortableContext items={byBucket[bucket].map((x) => x.id)} strategy={verticalListSortingStrategy}>
-                <div className="planner-col-body">
-                  {byBucket[bucket].length === 0 && (
-                    <p className="planner-empty">
-                      {bucket === "unscheduled" ? tr.plannerEmptyPool : tr.plannerEmptyBucket}
-                    </p>
-                  )}
-                  {byBucket[bucket].map((item) => (
-                    <PlannerCard key={item.id} item={item} onToggle={onToggleTask} />
-                  ))}
-                  <PlannerDropZone bucket={bucket} />
+          {PLAN_BUCKETS.map((bucket) => {
+            const isTray = bucket === "unscheduled";
+            return (
+              <div key={bucket} className={"planner-col" + (isTray ? " tray" : "")}>
+                <div className="planner-col-head">
+                  <span>{labels[bucket]}</span>
+                  <span className="planner-count">{byBucket[bucket].length}</span>
                 </div>
-              </SortableContext>
-            </div>
-          ))}
+
+                {isTray ? (
+                  <SortableContext items={visibleUnscheduledIds} strategy={verticalListSortingStrategy}>
+                    <div className="planner-col-body">
+                      {unscheduledByRoom.length === 0 && (
+                        <p className="planner-empty">{tr.plannerEmptyPool}</p>
+                      )}
+                      {unscheduledByRoom.map((g) => (
+                        <PlannerRoomGroup
+                          key={g.room.id}
+                          room={g.room}
+                          items={g.items}
+                          expanded={expandedRooms.has(g.room.id)}
+                          onToggleExpand={() => toggleRoomExpanded(g.room.id)}
+                          onToggleTask={onToggleTask}
+                          onToggleSub={onToggleSub}
+                        />
+                      ))}
+                      <PlannerDropZone bucket={bucket} />
+                    </div>
+                  </SortableContext>
+                ) : (
+                  <SortableContext items={byBucket[bucket].map((x) => x.id)} strategy={verticalListSortingStrategy}>
+                    <div className="planner-col-body">
+                      {byBucket[bucket].length === 0 && (
+                        <p className="planner-empty">{tr.plannerEmptyBucket}</p>
+                      )}
+                      {byBucket[bucket].map((item) => (
+                        <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onToggleSub={onToggleSub} />
+                      ))}
+                      <PlannerDropZone bucket={bucket} />
+                    </div>
+                  </SortableContext>
+                )}
+              </div>
+            );
+          })}
         </div>
       </DndContext>
     </section>
@@ -748,7 +832,7 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
 }
 
 /* ------------------------------ home -------------------------------- */
-function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onMoveTask }) {
+function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onToggleSub, onMoveTask }) {
   return (
     <main className="main">
       <div className="head">
@@ -802,7 +886,7 @@ function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, on
         </button>
       </div>
 
-      <Planner rooms={rooms} tr={tr} onToggleTask={onToggleTask} onMove={onMoveTask} />
+      <Planner rooms={rooms} tr={tr} onToggleTask={onToggleTask} onToggleSub={onToggleSub} onMove={onMoveTask} />
     </main>
   );
 }
@@ -1035,6 +1119,15 @@ export default function App() {
       ...r,
       tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)),
     }));
+  const togglePlannerSubtask = (roomId, taskId, subId) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).map((s) => (s.id === subId ? { ...s, done: !s.done } : s)) }
+          : t
+      ),
+    }));
 
   // Move/reorder a task between planner buckets (or within one). activeId/overId
   // are composite "roomId::taskId" strings, or overId can be "col:<bucket>" when
@@ -1220,6 +1313,7 @@ export default function App() {
           onOpenRoom={(id) => { setActiveId(id); setView("room"); }}
           onAddRoom={() => setAdding(true)}
           onToggleTask={togglePlannerTask}
+          onToggleSub={togglePlannerSubtask}
           onMoveTask={movePlannerTask}
         />
       ) : !active ? (
