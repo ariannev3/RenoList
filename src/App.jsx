@@ -198,13 +198,13 @@ const Icon = {
     </svg>
   ),
   grip: (p) => (
-    <svg viewBox="0 0 24 24" width="14" height="14" {...p}>
-      <circle cx="9" cy="5" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="5" r="1.5" fill="currentColor" />
-      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="9" cy="19" r="1.5" fill="currentColor" />
-      <circle cx="15" cy="19" r="1.5" fill="currentColor" />
+    <svg viewBox="0 0 24 24" width="18" height="18" {...p}>
+      <circle cx="9" cy="5" r="2" fill="currentColor" />
+      <circle cx="15" cy="5" r="2" fill="currentColor" />
+      <circle cx="9" cy="12" r="2" fill="currentColor" />
+      <circle cx="15" cy="12" r="2" fill="currentColor" />
+      <circle cx="9" cy="19" r="2" fill="currentColor" />
+      <circle cx="15" cy="19" r="2" fill="currentColor" />
     </svg>
   ),
 };
