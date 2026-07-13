@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, isConfigured } from "./supabaseClient";
 import {
-  DndContext, DragOverlay, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable,
+  DndContext, DragOverlay, closestCenter, pointerWithin, rectIntersection,
+  MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable, sortableKeyboardCoordinates,
@@ -298,6 +299,16 @@ const dragStyle = (transform, transition, isDragging) => ({
 /* ------------------------------ planner ------------------------------ */
 const PLAN_BUCKETS = ["unscheduled", "today", "tomorrow", "nextWeek"];
 
+// closestCenter alone compares the pointer to every card on the whole board,
+// so it can "snap" toward a neighbouring column even while the pointer is
+// still inside the current one. Requiring the pointer to literally be inside
+// a droppable first keeps each column "sticky" while you're hovering it.
+function plannerCollisionDetection(args) {
+  const pointerHits = pointerWithin(args);
+  if (pointerHits.length > 0) return pointerHits;
+  return rectIntersection(args);
+}
+
 // Flattens every open (not-done) task across every room into one list,
 // each tagged with its room's colour/name, its subtasks, and its planner bucket.
 function flattenOpenTasks(rooms) {
@@ -476,7 +487,7 @@ function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
       </div>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={plannerCollisionDetection}
         onDragStart={handleStart}
         onDragEnd={handleEnd}
         onDragCancel={handleCancel}
