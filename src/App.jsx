@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, isConfigured } from "./supabaseClient";
 import {
-  DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable,
+  DndContext, DragOverlay, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable, sortableKeyboardCoordinates,
@@ -356,6 +356,43 @@ function PlannerCard({ item, onToggle, onToggleSub }) {
   );
 }
 
+// A plain, non-interactive visual copy of a card used only inside DragOverlay.
+// DragOverlay portals this to the document body and moves it with the pointer,
+// so it stays visible and correctly positioned no matter which column it's
+// dragged over — unlike the real card, which only shifts within its own list.
+function PlannerCardPreview({ item }) {
+  const subs = item.subtasks || [];
+  return (
+    <div className="planner-card planner-card-preview">
+      <span className="grip" aria-hidden="true">
+        <Icon.grip />
+      </span>
+      <div className="planner-card-main">
+        <div className="planner-card-row">
+          <span className="box" style={{ "--dot": item.color.dot, "--chip": item.color.chip }} />
+          <div className="planner-card-body">
+            <span className="planner-card-text">{item.text}</span>
+            <span className="planner-card-room">
+              <span className="planner-card-dot" style={{ background: item.color.dot }} />
+              {item.roomName}
+            </span>
+          </div>
+        </div>
+        {subs.length > 0 && (
+          <ul className="planner-sublist">
+            {subs.map((s) => (
+              <li key={s.id} className={"planner-subitem" + (s.done ? " done" : "")}>
+                <span className="box sub" style={{ "--dot": item.color.dot, "--chip": item.color.chip }} />
+                <span className="planner-sub-text">{s.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // The unscheduled pool grouped by room, collapsed by default — click a room
 // to reveal its open tasks (and drag them out to plan them).
 function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask, onToggleSub }) {
@@ -400,10 +437,19 @@ function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Track which card is being dragged so we can render a floating preview of it
+  // (DragOverlay) — without this, the card only nudges within its own column
+  // and can appear to vanish while it's dragged over a different column.
+  const [activeItem, setActiveItem] = useState(null);
+  const handleStart = ({ active }) => {
+    setActiveItem(flat.find((x) => x.id === active.id) || null);
+  };
   const handleEnd = ({ active, over }) => {
+    setActiveItem(null);
     if (!over || active.id === over.id) return;
     onMove(active.id, over.id);
   };
+  const handleCancel = () => setActiveItem(null);
 
   const labels = {
     unscheduled: tr.bucketUnscheduled, today: tr.bucketToday,
@@ -428,7 +474,13 @@ function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
         <h2>{tr.planner}</h2>
         <p>{tr.plannerSub}</p>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleStart}
+        onDragEnd={handleEnd}
+        onDragCancel={handleCancel}
+      >
         <div className="planner-grid">
           {PLAN_BUCKETS.map((bucket) => {
             const isTray = bucket === "unscheduled";
@@ -476,6 +528,9 @@ function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
             );
           })}
         </div>
+        <DragOverlay>
+          {activeItem ? <PlannerCardPreview item={activeItem} /> : null}
+        </DragOverlay>
       </DndContext>
     </section>
   );
