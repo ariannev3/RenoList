@@ -137,7 +137,8 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .planner-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
 .planner-col { background:var(--card); border:1px solid var(--line); border-radius:18px;
   padding:14px; display:flex; flex-direction:column; min-height:180px; }
-.planner-col.tray { background:var(--cream); border-style:dashed; }
+.planner-col.tray { background:#E9DFC5; border-color:#D8CBA8; border-style:dashed; }
+.planner-col.tray .planner-count { background:rgba(255,255,255,.6); }
 .planner-col-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
   font-size:13px; font-weight:700; color:var(--ink); }
 .planner-count { font-size:11px; font-weight:600; color:var(--muted); background:#fff;
@@ -147,8 +148,8 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .planner-dropzone { flex:1; min-height:14px; border-radius:10px; transition:background .12s; }
 .planner-dropzone.over { background:rgba(38,35,29,.07); }
 .planner-card { display:flex; align-items:flex-start; gap:8px; background:var(--cream);
-  border:1px solid transparent; border-radius:13px; padding:8px 9px 8px 4px; transition:border-color .12s; }
-.planner-card:hover { border-color:var(--line); }
+  border:1px solid transparent; border-radius:13px; padding:8px 9px 8px 4px; transition:background .12s, border-color .12s; }
+.planner-card:hover { background:#F6E9C4; border-color:#E9D6A0; }
 .planner-card:hover .grip { opacity:1; margin-top:2px; }
 .planner-card .grip { margin-top:2px; }
 .planner-card-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
