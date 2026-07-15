@@ -1345,7 +1345,7 @@ export default function App() {
       <aside className="side" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
         <div className="brand">
           <div className="brand-mark"><Icon.brandMark /></div>
-          <span className="brand-name">Renovate</span>
+          <span className="brand-name">RenoList</span>
         </div>
 
         <button
