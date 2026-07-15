@@ -29,6 +29,7 @@ const colorAt = (i) => ROOM_COLORS[i % ROOM_COLORS.length];
 
 /* ------------------------------ i18n -------------------------------- */
 const LANG_KEY = "reno-lang";
+const NAME_KEY = "reno-commenter-name";
 const SIDEBAR_KEY = "reno-sidebar-width";
 const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 420;
@@ -59,6 +60,11 @@ const TRANSLATIONS = {
     bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketNextWeek: "Next week",
     plannerEmptyPool: "All open tasks land here until you plan them.",
     plannerEmptyBucket: "Drag tasks here",
+    statusInProgress: "In progress", statusOnHold: "On hold", statusDone: "Done",
+    subtasksComplete: "Subtasks complete", commentsLbl: "Comments",
+    addCommentPh: "Add a comment…", noComments: "No comments yet.",
+    yourNameLbl: "Your name", yourNameSub: "Shown on comments you leave on tasks.",
+    yourNamePh: "e.g. Alex", defaultCommenter: "You", subtasksLbl: "Subtasks",
   },
   nl: {
     dashboard: "Dashboard", settings: "Instellingen", rooms: "Kamers", newRoom: "Nieuwe kamer",
@@ -85,6 +91,11 @@ const TRANSLATIONS = {
     bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketNextWeek: "Volgende week",
     plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
     plannerEmptyBucket: "Sleep taken hierheen",
+    statusInProgress: "Bezig", statusOnHold: "Gepauzeerd", statusDone: "Klaar",
+    subtasksComplete: "Subtaken voltooid", commentsLbl: "Reacties",
+    addCommentPh: "Voeg een reactie toe…", noComments: "Nog geen reacties.",
+    yourNameLbl: "Jouw naam", yourNameSub: "Zichtbaar bij reacties die je op taken achterlaat.",
+    yourNamePh: "bijv. Alex", defaultCommenter: "Jij", subtasksLbl: "Subtaken",
   },
 };
 
@@ -189,6 +200,11 @@ const Icon = {
   x: (p) => (
     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" {...p}>
       <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  send: (p) => (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" {...p}>
+      <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   pencil: (p) => (
@@ -583,10 +599,11 @@ function SubtaskRow({ sub, taskId, color, onToggle, onDelete, onRename }) {
 }
 
 /* ----------------------------- task row ---------------------------- */
-function TaskRow({ task, color, tr, onToggle, onDelete, onRename, onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub }) {
+function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail, onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub }) {
   const subs = task.subtasks || [];
   const hasSubs = subs.length > 0;
   const complete = taskComplete(task);
+  const onHold = !complete && task.status === "on_hold";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   // Expand/collapse. Default: expanded while open, collapsed once signed off.
@@ -620,7 +637,10 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onRename, onAddSub, onTo
         </button>
         <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
         <div className="task-main">
-          <EditableText className="item-text" value={task.text} onSave={(t) => onRename(task.id, t)} />
+          <button type="button" className="item-text task-title-btn" onClick={() => onOpenDetail(task.id)}>
+            {task.text}
+          </button>
+          {onHold && <span className="hold-badge">{tr.statusOnHold}</span>}
           {hasSubs && (
             <button
               className={"arrow" + (expanded ? " open" : "")}
@@ -785,7 +805,7 @@ function ColorPicker({ ci, onPick, size = "sm" }) {
 /* --------------------------- list column --------------------------- */
 function ListColumn({
   kind, color, items, tr, onAdd, onToggle, onDelete, onAmount, onRename, onReorderList,
-  onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub,
+  onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub, onOpenDetail,
 }) {
   const [val, setVal] = useState("");
   const [amt, setAmt] = useState("");
@@ -858,7 +878,7 @@ function ListColumn({
                     tr={tr}
                     onToggle={onToggle}
                     onDelete={onDelete}
-                    onRename={onRename}
+                    onOpenDetail={onOpenDetail}
                     onAddSub={onAddSub}
                     onToggleSub={onToggleSub}
                     onDeleteSub={onDeleteSub}
@@ -975,7 +995,7 @@ function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, on
 }
 
 /* ---------------------------- settings ------------------------------ */
-function Settings({ tr, lang, onSetLang, status, syncLabel }) {
+function Settings({ tr, lang, onSetLang, status, syncLabel, commenterName, onSetCommenterName }) {
   return (
     <main className="main">
       <div className="head">
@@ -1011,6 +1031,19 @@ function Settings({ tr, lang, onSetLang, status, syncLabel }) {
 
         <section className="settings-card">
           <div className="settings-card-head">
+            <h2>{tr.yourNameLbl}</h2>
+            <p>{tr.yourNameSub}</p>
+          </div>
+          <input
+            className="settings-input"
+            value={commenterName}
+            onChange={(e) => onSetCommenterName(e.target.value)}
+            placeholder={tr.yourNamePh}
+          />
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
             <h2>{tr.statusLbl}</h2>
             <p>{tr.statusSub}</p>
           </div>
@@ -1020,6 +1053,169 @@ function Settings({ tr, lang, onSetLang, status, syncLabel }) {
         </section>
       </div>
     </main>
+  );
+}
+
+/* ------------------------- task detail popup ------------------------ */
+function timeAgo(ts, tr) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return tr === "nl" ? "zojuist" : "just now";
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const day = Math.floor(hr / 24);
+  return `${day}d`;
+}
+
+function TaskDetailModal({
+  task, room, color, tr, onClose, onRename, onSetStatus,
+  onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub, onAddComment,
+}) {
+  const subs = task.subtasks || [];
+  const comments = task.comments || [];
+  const displayStatus = task.done ? "done" : (task.status === "on_hold" ? "on_hold" : "in_progress");
+
+  const [subText, setSubText] = useState("");
+  const [commentText, setCommentText] = useState("");
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submitSub = () => {
+    const t = subText.trim();
+    if (t) onAddSub(task.id, t);
+    setSubText("");
+  };
+  const submitComment = () => {
+    const t = commentText.trim();
+    if (t) onAddComment(task.id, t);
+    setCommentText("");
+  };
+
+  const subsDone = subs.filter((s) => s.done).length;
+
+  return (
+    <div className="detail-overlay" onClick={onClose}>
+      <div className="detail-card" onClick={(e) => e.stopPropagation()}>
+        <div className="detail-head">
+          <div>
+            <div className="detail-room">
+              <span className="detail-room-dot" style={{ background: color.dot }} />
+              {room.name}
+            </div>
+            <EditableText className="detail-title" value={task.text} onSave={(t) => onRename(task.id, t)} />
+          </div>
+          <button className="detail-close" onClick={onClose} aria-label="Close">
+            <Icon.x />
+          </button>
+        </div>
+
+        <div className="detail-body">
+          <div className="status-segmented">
+            {[
+              ["in_progress", tr.statusInProgress],
+              ["on_hold", tr.statusOnHold],
+              ["done", tr.statusDone],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={"status-opt" + (displayStatus === key ? " active" : "")}
+                onClick={() => onSetStatus(task.id, key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {subs.length > 0 && (
+            <div className="detail-progress">
+              <div className="detail-progress-top">
+                <span>{tr.subtasksComplete}</span>
+                <span className="detail-progress-num">{subsDone}/{subs.length}</span>
+              </div>
+              <div className="bar detail-progress-bar">
+                <i style={{ width: (subsDone / subs.length) * 100 + "%", background: color.dot }} />
+              </div>
+            </div>
+          )}
+
+          <div className="detail-section">
+            <div className="detail-section-lbl">{tr.subtasksLbl}</div>
+            {subs.length > 0 && (
+              <DragList items={subs} onReorder={(newSubs) => onReorderSub(task.id, newSubs)}>
+                <ul className="sublist detail-sublist">
+                  {subs.map((st) => (
+                    <SubtaskRow
+                      key={st.id}
+                      sub={st}
+                      taskId={task.id}
+                      color={color}
+                      onToggle={onToggleSub}
+                      onDelete={onDeleteSub}
+                      onRename={onRenameSub}
+                    />
+                  ))}
+                </ul>
+              </DragList>
+            )}
+            <div className="sub-add detail-sub-add">
+              <span className="box sub" aria-hidden="true" />
+              <input
+                className="sub-input"
+                value={subText}
+                onChange={(e) => setSubText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitSub()}
+                placeholder={tr.addSubtaskPh}
+              />
+              <button className="detail-sub-add-btn" onClick={submitSub} aria-label="Add subtask">
+                <Icon.plus />
+              </button>
+            </div>
+          </div>
+
+          <div className="detail-section detail-comments">
+            <div className="detail-section-lbl">{tr.commentsLbl}</div>
+            {comments.length === 0 ? (
+              <p className="detail-no-comments">{tr.noComments}</p>
+            ) : (
+              <div className="comment-list">
+                {comments.map((c) => (
+                  <div className="comment" key={c.id}>
+                    <span className="comment-avatar" style={{ background: color.chip, color: color.ink }}>
+                      {(c.author || "?").trim().slice(0, 1).toUpperCase()}
+                    </span>
+                    <div className="comment-body">
+                      <div className="comment-meta">
+                        <span className="comment-author">{c.author}</span>
+                        <span className="comment-time">{timeAgo(c.ts, tr === TRANSLATIONS.nl ? "nl" : "en")}</span>
+                      </div>
+                      <p className="comment-text">{c.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="comment-add">
+              <input
+                className="comment-input"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitComment()}
+                placeholder={tr.addCommentPh}
+              />
+              <button className="comment-send" style={{ background: color.dot }} onClick={submitComment} aria-label="Send comment">
+                <Icon.send />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1036,6 +1232,23 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(LANG_KEY, lang); } catch { /* ignore */ }
   }, [lang]);
+
+  const [commenterName, setCommenterName] = useState(() => {
+    try { return localStorage.getItem(NAME_KEY) || ""; } catch { return ""; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(NAME_KEY, commenterName); } catch { /* ignore */ }
+  }, [commenterName]);
+
+  // Which task's detail popup is open, if any: { roomId, taskId } or null.
+  const [detail, setDetail] = useState(null);
+  // Resolve the popup's live data fresh from `rooms` each render, so it
+  // stays in sync if the other person edits the same task.
+  const detailRoom = detail ? rooms.find((r) => r.id === detail.roomId) : null;
+  const detailTaskObj = detailRoom ? detailRoom.tasks.find((t) => t.id === detail.taskId) : null;
+  useEffect(() => {
+    if (detail && !detailTaskObj) setDetail(null); // task was deleted elsewhere — close cleanly
+  }, [detail, detailTaskObj]);
   const tr = TRANSLATIONS[lang] || TRANSLATIONS.en;
 
   const [roomsOpen, setRoomsOpen] = useState(true);
@@ -1229,6 +1442,30 @@ export default function App() {
       ),
     }));
 
+  // --- task detail popup (status + comments) ---
+  const setTaskStatus = (roomId, taskId, statusValue) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId ? { ...t, done: statusValue === "done", status: statusValue } : t
+      ),
+    }));
+  const addTaskComment = (roomId, taskId, text) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              comments: [
+                ...(t.comments || []),
+                { id: uid(), author: commenterName.trim() || tr.defaultCommenter, text, ts: Date.now() },
+              ],
+            }
+          : t
+      ),
+    }));
+
   // --- drag reordering ---
   const reorderTasks = (newTasks) => update(active.id, (r) => ({ ...r, tasks: newTasks }));
   const reorderMaterials = (newMaterials) => update(active.id, (r) => ({ ...r, materials: newMaterials }));
@@ -1340,6 +1577,7 @@ export default function App() {
   if (!isConfigured) return <SetupNotice />;
 
   return (
+    <>
     <div className="reno">
       {/* ---------------- sidebar ---------------- */}
       <aside className="side" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
@@ -1442,7 +1680,15 @@ export default function App() {
       {!loaded ? (
         <main className="main loading"><div className="spinner" /></main>
       ) : view === "settings" ? (
-        <Settings tr={tr} lang={lang} onSetLang={setLang} status={status} syncLabel={syncLabel} />
+        <Settings
+          tr={tr}
+          lang={lang}
+          onSetLang={setLang}
+          status={status}
+          syncLabel={syncLabel}
+          commenterName={commenterName}
+          onSetCommenterName={setCommenterName}
+        />
       ) : rooms.length === 0 ? (
         <main className="main">
           <div className="blank">
@@ -1523,6 +1769,7 @@ export default function App() {
                     onDeleteSub={deleteSubtask}
                     onRenameSub={renameSubtask}
                     onReorderSub={reorderSubtasks}
+                    onOpenDetail={(taskId) => setDetail({ roomId: active.id, taskId })}
                   />
                   <ListColumn
                     kind="material"
@@ -1543,5 +1790,24 @@ export default function App() {
         </main>
       )}
     </div>
+
+    {detailTaskObj && detailRoom && (
+      <TaskDetailModal
+        task={detailTaskObj}
+        room={detailRoom}
+        color={colorAt(detailRoom.ci ?? rooms.indexOf(detailRoom))}
+        tr={tr}
+        onClose={() => setDetail(null)}
+        onRename={(taskId, text) => renameItem("tasks", taskId, text)}
+        onSetStatus={(taskId, statusValue) => setTaskStatus(detailRoom.id, taskId, statusValue)}
+        onAddSub={addSubtask}
+        onToggleSub={toggleSubtask}
+        onDeleteSub={deleteSubtask}
+        onRenameSub={renameSubtask}
+        onReorderSub={reorderSubtasks}
+        onAddComment={(taskId, text) => addTaskComment(detailRoom.id, taskId, text)}
+      />
+    )}
+    </>
   );
 }
