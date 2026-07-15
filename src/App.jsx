@@ -404,7 +404,7 @@ function PlannerCard({ item, onToggle, onOpenDetail }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ ...dragStyle(transform, transition, isDragging), background: item.color.chip, color: item.color.ink }}
+      style={dragStyle(transform, transition, isDragging)}
       className="planner-card"
     >
       <button className="grip" {...attributes} {...listeners} aria-label="Drag">
@@ -442,7 +442,7 @@ function PlannerCardPreview({ item }) {
   const subs = item.subtasks || [];
   const subsDone = subs.filter((s) => s.done).length;
   return (
-    <div className="planner-card planner-card-preview" style={{ background: item.color.chip, color: item.color.ink }}>
+    <div className="planner-card planner-card-preview">
       <span className="grip" aria-hidden="true">
         <Icon.grip />
       </span>
@@ -636,7 +636,7 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
 
   return (
     <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="task-wrap">
-      <div className={"task-card" + (complete ? " done" : "")} style={{ background: color.chip, color: color.ink }}>
+      <div className={"task-card" + (complete ? " done" : "")}>
         <div className="task-card-top">
           <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
             <Icon.grip />

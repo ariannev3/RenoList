@@ -147,7 +147,7 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .planner-head h2 { font-size:18px; font-weight:800; letter-spacing:-.01em; margin:0 0 3px; }
 .planner-head p { font-size:13px; color:var(--muted); margin:0; }
 .planner-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
-.planner-col { background:var(--card); border:1px solid var(--line); border-radius:18px;
+.planner-col { background:#fff; border:1px solid var(--line); border-radius:18px;
   padding:14px; display:flex; flex-direction:column; min-height:180px; }
 .planner-col.tray { background:#E9DFC5; border-color:#D8CBA8; border-style:dashed; }
 .planner-col.tray .planner-count { background:rgba(255,255,255,.6); }
@@ -159,16 +159,16 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .planner-empty { font-size:12px; color:var(--muted); text-align:center; padding:14px 6px; margin:0; }
 .planner-dropzone { flex:1; min-height:14px; border-radius:10px; transition:background .12s; }
 .planner-dropzone.over { background:rgba(38,35,29,.07); }
-.planner-card { display:flex; align-items:flex-start; gap:8px;
-  border-radius:13px; padding:8px 9px 8px 4px; transition:transform .12s, box-shadow .12s; }
-.planner-card:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(38,35,29,.12); }
+.planner-card { display:flex; align-items:flex-start; gap:8px; background:var(--cream);
+  border-radius:13px; padding:8px 9px 8px 4px; transition:background .12s, transform .12s, box-shadow .12s; }
+.planner-card:hover { background:#EDE4D0; transform:translateY(-1px); box-shadow:0 4px 14px rgba(38,35,29,.1); }
 .planner-card:hover .grip { opacity:1; margin-top:2px; }
 .planner-card .grip { margin-top:2px; }
 .planner-card-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
 .planner-card-row { display:flex; align-items:center; gap:8px; }
 .planner-card-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.planner-card-text { font-size:13.5px; font-weight:600; color:inherit; word-break:break-word; }
-.planner-card-room { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:inherit; opacity:.7; }
+.planner-card-text { font-size:13.5px; font-weight:600; color:var(--ink); word-break:break-word; }
+.planner-card-room { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--muted); }
 .planner-card-preview { box-shadow:0 14px 34px rgba(38,35,29,.22); cursor:grabbing; pointer-events:none; }
 .planner-card-dot { width:7px; height:7px; border-radius:50%; flex:0 0 7px; }
 .planner-sublist { list-style:none; margin:0; padding:0 0 0 30px; display:flex; flex-direction:column; gap:4px; }
@@ -218,7 +218,7 @@ body { background: #F1EBDD; overflow-x: hidden; }
 
 /* columns */
 .cols { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
-.col { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:18px 18px 8px;
+.col { background:#fff; border:1px solid var(--line); border-radius:22px; padding:18px 18px 8px;
   display:flex; flex-direction:column; min-height:280px; min-width:0; max-width:100%; }
 .col-head { display:flex; align-items:center; gap:10px; padding:2px 4px 14px; }
 .col-ic { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
@@ -282,10 +282,10 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .task-wrap { display:flex; flex-direction:column; }
 .task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
 
-.task-card { border-radius:14px; padding:10px 10px 12px; transition:transform .12s, box-shadow .12s; }
-.task-card:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(38,35,29,.12); }
+.task-card { background:var(--cream); border-radius:14px; padding:10px 10px 12px; transition:background .12s, transform .12s, box-shadow .12s; }
+.task-card:hover { background:#EDE4D0; transform:translateY(-1px); box-shadow:0 4px 14px rgba(38,35,29,.1); }
 .task-card-top { display:flex; align-items:center; gap:10px; }
-.task-card.done .item-text { text-decoration:line-through; opacity:.6; font-weight:400; }
+.task-card.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .task-card:hover .del { opacity:1; }
 .task-card:hover .grip { opacity:1; }
 
