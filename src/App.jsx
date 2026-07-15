@@ -402,7 +402,11 @@ function PlannerCard({ item, onToggle, onOpenDetail }) {
   const subs = item.subtasks || [];
   const subsDone = subs.filter((s) => s.done).length;
   return (
-    <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="planner-card">
+    <div
+      ref={setNodeRef}
+      style={{ ...dragStyle(transform, transition, isDragging), background: item.color.chip, color: item.color.ink }}
+      className="planner-card"
+    >
       <button className="grip" {...attributes} {...listeners} aria-label="Drag">
         <Icon.grip />
       </button>
@@ -438,7 +442,7 @@ function PlannerCardPreview({ item }) {
   const subs = item.subtasks || [];
   const subsDone = subs.filter((s) => s.done).length;
   return (
-    <div className="planner-card planner-card-preview">
+    <div className="planner-card planner-card-preview" style={{ background: item.color.chip, color: item.color.ink }}>
       <span className="grip" aria-hidden="true">
         <Icon.grip />
       </span>
@@ -622,42 +626,17 @@ function SubtaskRow({ sub, taskId, color, onToggle, onDelete, onRename }) {
 }
 
 /* ----------------------------- task row ---------------------------- */
-function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail, onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub }) {
+function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
   const subs = task.subtasks || [];
-  const hasSubs = subs.length > 0;
+  const subsDone = subs.filter((s) => s.done).length;
+  const commentsTotal = (task.comments || []).length;
   const complete = taskComplete(task);
   const onHold = !complete && task.status === "on_hold";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
-  // Expand/collapse. Default: expanded while open, collapsed once signed off.
-  const [override, setOverride] = useState(null); // null = follow default
-  const prevComplete = useRef(complete);
-  useEffect(() => {
-    if (prevComplete.current !== complete) {
-      prevComplete.current = complete;
-      setOverride(null);
-    }
-  }, [complete]);
-  const expanded = override === null ? !complete : override;
-
-  // Add-subtask input (one per row).
-  const [adding, setAdding] = useState(false);
-  const [text, setText] = useState("");
-  const inputRef = useRef(null);
-  useEffect(() => { if (adding && inputRef.current) inputRef.current.focus(); }, [adding]);
-  const submitSub = () => {
-    const t = text.trim();
-    if (t) onAddSub(task.id, t);
-    setText("");
-    setAdding(false);
-  };
-
-  const subsDone = subs.filter((s) => s.done).length;
-  const commentsTotal = (task.comments || []).length;
-
   return (
     <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="task-wrap">
-      <div className={"task-card" + (complete ? " done" : "")}>
+      <div className={"task-card" + (complete ? " done" : "")} style={{ background: color.chip, color: color.ink }}>
         <div className="task-card-top">
           <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
             <Icon.grip />
@@ -668,68 +647,13 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail, onAddSub, 
               {task.text}
             </button>
             {onHold && <span className="hold-badge">{tr.statusOnHold}</span>}
-            {hasSubs && (
-              <button
-                className={"arrow" + (expanded ? " open" : "")}
-                onClick={() => setOverride(!expanded)}
-                aria-expanded={expanded}
-                aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
-              >
-                <Icon.caret />
-              </button>
-            )}
           </div>
           <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
             <Icon.x />
           </button>
         </div>
-
         <TaskCardMeta subsTotal={subs.length} commentsTotal={commentsTotal} />
         <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={color} />
-
-      {expanded && (
-        <>
-          {hasSubs && (
-            <DragList items={subs} onReorder={(newSubs) => onReorderSub(task.id, newSubs)}>
-              <ul className="sublist">
-                {subs.map((st) => (
-                  <SubtaskRow
-                    key={st.id}
-                    sub={st}
-                    taskId={task.id}
-                    color={color}
-                    onToggle={onToggleSub}
-                    onDelete={onDeleteSub}
-                    onRename={onRenameSub}
-                  />
-                ))}
-              </ul>
-            </DragList>
-          )}
-
-          {adding ? (
-            <div className="sub-add">
-              <span className="box sub" aria-hidden="true" />
-              <input
-                ref={inputRef}
-                className="sub-input"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitSub();
-                  if (e.key === "Escape") { setAdding(false); setText(""); }
-                }}
-                onBlur={submitSub}
-                placeholder={tr.addSubtaskPh}
-              />
-            </div>
-          ) : (
-            <button className="sub-add-btn" onClick={() => setAdding(true)}>
-              <Icon.plus /> {tr.subtaskBtn}
-            </button>
-          )}
-        </>
-      )}
       </div>
     </li>
   );
@@ -835,8 +759,7 @@ function ColorPicker({ ci, onPick, size = "sm" }) {
 
 /* --------------------------- list column --------------------------- */
 function ListColumn({
-  kind, color, items, tr, onAdd, onToggle, onDelete, onAmount, onRename, onReorderList,
-  onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub, onOpenDetail,
+  kind, color, items, tr, onAdd, onToggle, onDelete, onAmount, onRename, onReorderList, onOpenDetail,
 }) {
   const [val, setVal] = useState("");
   const [amt, setAmt] = useState("");
@@ -900,7 +823,7 @@ function ListColumn({
           const ordered = [...items].sort((a, b) => (taskComplete(a) ? 1 : 0) - (taskComplete(b) ? 1 : 0));
           return (
             <DragList items={ordered} onReorder={onReorderList}>
-              <ul className="list">
+              <ul className="list task-list">
                 {ordered.map((it) => (
                   <TaskRow
                     key={it.id}
@@ -910,11 +833,6 @@ function ListColumn({
                     onToggle={onToggle}
                     onDelete={onDelete}
                     onOpenDetail={onOpenDetail}
-                    onAddSub={onAddSub}
-                    onToggleSub={onToggleSub}
-                    onDeleteSub={onDeleteSub}
-                    onRenameSub={onRenameSub}
-                    onReorderSub={onReorderSub}
                   />
                 ))}
               </ul>
@@ -1435,44 +1353,6 @@ export default function App() {
       [kind]: r[kind].map((i) => (i.id === itemId ? { ...i, text } : i)),
     }));
 
-  // --- subtasks (tasks only) ---
-  const addSubtask = (taskId, text) =>
-    update(active.id, (r) => ({
-      ...r,
-      tasks: r.tasks.map((t) =>
-        t.id === taskId
-          ? { ...t, subtasks: [...(t.subtasks || []), { id: uid(), text, done: false }] }
-          : t
-      ),
-    }));
-  const toggleSubtask = (taskId, subId) =>
-    update(active.id, (r) => ({
-      ...r,
-      tasks: r.tasks.map((t) =>
-        t.id === taskId
-          ? { ...t, subtasks: (t.subtasks || []).map((s) => (s.id === subId ? { ...s, done: !s.done } : s)) }
-          : t
-      ),
-    }));
-  const deleteSubtask = (taskId, subId) =>
-    update(active.id, (r) => ({
-      ...r,
-      tasks: r.tasks.map((t) =>
-        t.id === taskId
-          ? { ...t, subtasks: (t.subtasks || []).filter((s) => s.id !== subId) }
-          : t
-      ),
-    }));
-  const renameSubtask = (taskId, subId, text) =>
-    update(active.id, (r) => ({
-      ...r,
-      tasks: r.tasks.map((t) =>
-        t.id === taskId
-          ? { ...t, subtasks: (t.subtasks || []).map((s) => (s.id === subId ? { ...s, text } : s)) }
-          : t
-      ),
-    }));
-
   // --- task detail popup (status + comments) ---
   const setTaskStatus = (roomId, taskId, statusValue) =>
     update(roomId, (r) => ({
@@ -1500,11 +1380,6 @@ export default function App() {
   // --- drag reordering ---
   const reorderTasks = (newTasks) => update(active.id, (r) => ({ ...r, tasks: newTasks }));
   const reorderMaterials = (newMaterials) => update(active.id, (r) => ({ ...r, materials: newMaterials }));
-  const reorderSubtasks = (taskId, newSubs) =>
-    update(active.id, (r) => ({
-      ...r,
-      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, subtasks: newSubs } : t)),
-    }));
   const reorderRooms = (newRooms) => setRooms(newRooms);
 
   // --- planner (cross-room) ---
@@ -1836,11 +1711,6 @@ export default function App() {
                     onDelete={(id) => deleteItem("tasks", id)}
                     onRename={(id, t) => renameItem("tasks", id, t)}
                     onReorderList={reorderTasks}
-                    onAddSub={addSubtask}
-                    onToggleSub={toggleSubtask}
-                    onDeleteSub={deleteSubtask}
-                    onRenameSub={renameSubtask}
-                    onReorderSub={reorderSubtasks}
                     onOpenDetail={(taskId) => setDetail({ roomId: active.id, taskId })}
                   />
                   <ListColumn
