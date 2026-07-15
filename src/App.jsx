@@ -264,7 +264,7 @@ function StatusPill({ statusKey, tr }) {
   const c = STATUS_COLORS[statusKey];
   const label = statusKey === "done" ? tr.statusDone : statusKey === "on_hold" ? tr.statusOnHold : tr.statusInProgress;
   return (
-    <span className="status-pill" style={{ background: c.chip, color: c.ink }}>
+    <span className="status-pill" style={{ background: c.chip, color: c.ink, borderColor: c.dot }}>
       {label}
     </span>
   );
@@ -1099,7 +1099,9 @@ function TaskDetailModal({
                   key={key}
                   type="button"
                   className={"status-opt" + (isActive ? " active" : "")}
-                  style={isActive ? { background: c.ink, color: "#fff" } : { background: c.chip, color: c.ink }}
+                  style={isActive
+                    ? { background: c.chip, color: c.ink, borderColor: c.dot }
+                    : { background: "#fff", color: "var(--muted)", borderColor: "transparent" }}
                   onClick={() => onSetStatus(task.id, key)}
                 >
                   {label}
