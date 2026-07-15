@@ -29,6 +29,10 @@ const colorAt = (i) => ROOM_COLORS[i % ROOM_COLORS.length];
 
 /* ------------------------------ i18n -------------------------------- */
 const LANG_KEY = "reno-lang";
+const SIDEBAR_KEY = "reno-sidebar-width";
+const SIDEBAR_MIN = 220;
+const SIDEBAR_MAX = 420;
+const SIDEBAR_DEFAULT = 280;
 const TRANSLATIONS = {
   en: {
     dashboard: "Dashboard", settings: "Settings", rooms: "Rooms", newRoom: "New room",
@@ -148,6 +152,14 @@ const Icon = {
   home: (p) => (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
       <path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  ),
+  rooms: (p) => (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
+      <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   ),
   settings: (p) => (
@@ -1020,6 +1032,50 @@ export default function App() {
     try { localStorage.setItem(LANG_KEY, lang); } catch { /* ignore */ }
   }, [lang]);
   const tr = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  const [roomsOpen, setRoomsOpen] = useState(true);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const v = parseInt(localStorage.getItem(SIDEBAR_KEY), 10);
+      return Number.isFinite(v) ? Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, v)) : SIDEBAR_DEFAULT;
+    } catch { return SIDEBAR_DEFAULT; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_KEY, String(sidebarWidth)); } catch { /* ignore */ }
+  }, [sidebarWidth]);
+
+  const resizing = useRef(false);
+  const startSidebarResize = (e) => {
+    resizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  };
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!resizing.current) return;
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      setSidebarWidth(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, x)));
+      if (e.touches) e.preventDefault();
+    };
+    const onUp = () => {
+      if (!resizing.current) return;
+      resizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, []);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState(null);
@@ -1281,7 +1337,7 @@ export default function App() {
   return (
     <div className="reno">
       {/* ---------------- sidebar ---------------- */}
-      <aside className="side">
+      <aside className="side" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
         <div className="brand">
           <div className="brand-mark" />
           <span className="brand-name">Renovate</span>
@@ -1294,47 +1350,58 @@ export default function App() {
           <Icon.home /> {tr.dashboard}
         </button>
 
-        <div className="side-label">{tr.rooms}</div>
+        <button
+          type="button"
+          className={"rooms-toggle" + (roomsOpen ? " open" : "")}
+          onClick={() => setRoomsOpen((o) => !o)}
+        >
+          <Icon.rooms /> {tr.rooms}
+          <Icon.caret className="rooms-toggle-caret" />
+        </button>
 
-        <DragList items={rooms} onReorder={reorderRooms}>
-          {rooms.map((r, i) => (
-            <RoomRow
-              key={r.id}
-              room={r}
-              ci={r.ci ?? i}
-              tasksDone={r.tasks.filter(taskComplete).length}
-              tasksTotal={r.tasks.length}
-              active={view === "room" && r.id === activeId}
-              editing={editId === r.id}
-              editName={editName}
-              onSelect={() => { setActiveId(r.id); setView("room"); }}
-              onStartEdit={() => { setEditId(r.id); setEditName(r.name); }}
-              onEditChange={(v) => setEditName(v)}
-              onEditCommit={renameRoom}
-              onDelete={() => deleteRoom(r.id)}
-              onPickColor={(idx) => setRoomColor(r.id, idx)}
-            />
-          ))}
-        </DragList>
+        {roomsOpen && (
+          <>
+            <DragList items={rooms} onReorder={reorderRooms}>
+              {rooms.map((r, i) => (
+                <RoomRow
+                  key={r.id}
+                  room={r}
+                  ci={r.ci ?? i}
+                  tasksDone={r.tasks.filter(taskComplete).length}
+                  tasksTotal={r.tasks.length}
+                  active={view === "room" && r.id === activeId}
+                  editing={editId === r.id}
+                  editName={editName}
+                  onSelect={() => { setActiveId(r.id); setView("room"); }}
+                  onStartEdit={() => { setEditId(r.id); setEditName(r.name); }}
+                  onEditChange={(v) => setEditName(v)}
+                  onEditCommit={renameRoom}
+                  onDelete={() => deleteRoom(r.id)}
+                  onPickColor={(idx) => setRoomColor(r.id, idx)}
+                />
+              ))}
+            </DragList>
 
-        {adding ? (
-          <input
-            ref={addRef}
-            className="side-input"
-            style={{ marginTop: 4 }}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") createRoom();
-              if (e.key === "Escape") { setAdding(false); setNewName(""); }
-            }}
-            onBlur={createRoom}
-            placeholder={tr.roomNamePlaceholder}
-          />
-        ) : (
-          <button className="add-room" onClick={() => setAdding(true)}>
-            <Icon.plus /> {tr.newRoom}
-          </button>
+            {adding ? (
+              <input
+                ref={addRef}
+                className="side-input"
+                style={{ marginTop: 4 }}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") createRoom();
+                  if (e.key === "Escape") { setAdding(false); setNewName(""); }
+                }}
+                onBlur={createRoom}
+                placeholder={tr.roomNamePlaceholder}
+              />
+            ) : (
+              <button className="add-room" onClick={() => setAdding(true)}>
+                <Icon.plus /> {tr.newRoom}
+              </button>
+            )}
+          </>
         )}
 
         <div className="side-foot">
@@ -1356,6 +1423,15 @@ export default function App() {
           </button>
         </div>
       </aside>
+
+      <div
+        className="side-resizer"
+        onMouseDown={startSidebarResize}
+        onTouchStart={startSidebarResize}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+      />
 
       {/* ---------------- main ---------------- */}
       {!loaded ? (
