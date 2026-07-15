@@ -149,6 +149,11 @@ async function saveBoard(rooms) {
 
 /* ------------------------------ icons ------------------------------ */
 const Icon = {
+  brandMark: (p) => (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" {...p}>
+      <path d="M12 3.3l8.5 6.9a1 1 0 01.37.78V19.5a1.2 1.2 0 01-1.2 1.2H15v-6.2a1 1 0 00-1-1h-4a1 1 0 00-1 1v6.2H4.33a1.2 1.2 0 01-1.2-1.2v-8.52a1 1 0 01.37-.78L12 3.3z" />
+    </svg>
+  ),
   home: (p) => (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
       <path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -1339,7 +1344,7 @@ export default function App() {
       {/* ---------------- sidebar ---------------- */}
       <aside className="side" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
         <div className="brand">
-          <div className="brand-mark" />
+          <div className="brand-mark"><Icon.brandMark /></div>
           <span className="brand-name">Renovate</span>
         </div>
 
