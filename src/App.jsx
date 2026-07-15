@@ -251,6 +251,25 @@ const Icon = {
 // A task is complete when its own checkbox is ticked (you sign it off yourself).
 const taskComplete = (t) => !!t.done;
 
+// Reuses the app's existing pastel palette (sky, yellow, sage) so status
+// colours stay consistent with everything else rather than introducing new hues.
+const STATUS_COLORS = {
+  in_progress: { chip: "#DEEAFB", dot: "#89B4EF", ink: "#2F4E7C" },
+  on_hold: { chip: "#FBEFC6", dot: "#EFC85F", ink: "#7A5B12" },
+  done: { chip: "#E1EEDB", dot: "#94C285", ink: "#3C5E30" },
+};
+const taskStatusKey = (t) => (t.done ? "done" : t.status === "on_hold" ? "on_hold" : "in_progress");
+
+function StatusPill({ statusKey, tr }) {
+  const c = STATUS_COLORS[statusKey];
+  const label = statusKey === "done" ? tr.statusDone : statusKey === "on_hold" ? tr.statusOnHold : tr.statusInProgress;
+  return (
+    <span className="status-pill" style={{ background: c.chip, color: c.ink }}>
+      {label}
+    </span>
+  );
+}
+
 function Check({ done, color, onClick, small, disabled }) {
   return (
     <button
@@ -384,7 +403,7 @@ function flattenOpenTasks(rooms) {
       flat.push({
         id: `${r.id}::${t.id}`,
         roomId: r.id, taskId: t.id, roomName: r.name, color,
-        text: t.text, subtasks: t.subtasks || [], comments: t.comments || [],
+        text: t.text, subtasks: t.subtasks || [], comments: t.comments || [], status: t.status,
         bucket: t.plan || "unscheduled", order: t.planOrder ?? 0,
       });
     });
@@ -397,7 +416,7 @@ function PlannerDropZone({ bucket }) {
   return <div ref={setNodeRef} className={"planner-dropzone" + (isOver ? " over" : "")} />;
 }
 
-function PlannerCard({ item, onToggle, onOpenDetail }) {
+function PlannerCard({ item, tr, onToggle, onOpenDetail }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const subs = item.subtasks || [];
   const subsDone = subs.filter((s) => s.done).length;
@@ -421,6 +440,7 @@ function PlannerCard({ item, onToggle, onOpenDetail }) {
             >
               {item.text}
             </button>
+            <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
             <span className="planner-card-room">
               <span className="planner-card-dot" style={{ background: item.color.dot }} />
               {item.roomName}
@@ -438,7 +458,7 @@ function PlannerCard({ item, onToggle, onOpenDetail }) {
 // DragOverlay portals this to the document body and moves it with the pointer,
 // so it stays visible and correctly positioned no matter which column it's
 // dragged over — unlike the real card, which only shifts within its own list.
-function PlannerCardPreview({ item }) {
+function PlannerCardPreview({ item, tr }) {
   const subs = item.subtasks || [];
   const subsDone = subs.filter((s) => s.done).length;
   return (
@@ -451,6 +471,7 @@ function PlannerCardPreview({ item }) {
           <span className="box" style={{ "--dot": item.color.dot, "--chip": item.color.chip }} />
           <div className="planner-card-body">
             <span className="planner-card-text">{item.text}</span>
+            <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
             <span className="planner-card-room">
               <span className="planner-card-dot" style={{ background: item.color.dot }} />
               {item.roomName}
@@ -466,7 +487,7 @@ function PlannerCardPreview({ item }) {
 
 // The unscheduled pool grouped by room, collapsed by default — click a room
 // to reveal its open tasks (and drag them out to plan them).
-function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask, onOpenDetail }) {
+function PlannerRoomGroup({ room, items, tr, expanded, onToggleExpand, onToggleTask, onOpenDetail }) {
   return (
     <div className="planner-room-group">
       <button type="button" className="planner-room-head" onClick={onToggleExpand}>
@@ -478,7 +499,7 @@ function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask,
       {expanded && (
         <div className="planner-room-tasks">
           {items.map((item) => (
-            <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onOpenDetail={onOpenDetail} />
+            <PlannerCard key={item.id} item={item} tr={tr} onToggle={onToggleTask} onOpenDetail={onOpenDetail} />
           ))}
         </div>
       )}
@@ -573,6 +594,7 @@ function Planner({ rooms, tr, onToggleTask, onOpenDetail, onMove }) {
                           key={g.room.id}
                           room={g.room}
                           items={g.items}
+                          tr={tr}
                           expanded={expandedRooms.has(g.room.id)}
                           onToggleExpand={() => toggleRoomExpanded(g.room.id)}
                           onToggleTask={onToggleTask}
@@ -589,7 +611,7 @@ function Planner({ rooms, tr, onToggleTask, onOpenDetail, onMove }) {
                         <p className="planner-empty">{tr.plannerEmptyBucket}</p>
                       )}
                       {byBucket[bucket].map((item) => (
-                        <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onOpenDetail={onOpenDetail} />
+                        <PlannerCard key={item.id} item={item} tr={tr} onToggle={onToggleTask} onOpenDetail={onOpenDetail} />
                       ))}
                       <PlannerDropZone bucket={bucket} />
                     </div>
@@ -600,7 +622,7 @@ function Planner({ rooms, tr, onToggleTask, onOpenDetail, onMove }) {
           })}
         </div>
         <DragOverlay>
-          {activeItem ? <PlannerCardPreview item={activeItem} /> : null}
+          {activeItem ? <PlannerCardPreview item={activeItem} tr={tr} /> : null}
         </DragOverlay>
       </DndContext>
     </section>
@@ -631,7 +653,7 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
   const subsDone = subs.filter((s) => s.done).length;
   const commentsTotal = (task.comments || []).length;
   const complete = taskComplete(task);
-  const onHold = !complete && task.status === "on_hold";
+  const statusKey = taskStatusKey(task);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   return (
@@ -646,7 +668,7 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
             <button type="button" className="item-text task-title-btn" onClick={() => onOpenDetail(task.id)}>
               {task.text}
             </button>
-            {onHold && <span className="hold-badge">{tr.statusOnHold}</span>}
+            <StatusPill statusKey={statusKey} tr={tr} />
           </div>
           <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
             <Icon.x />
@@ -1069,16 +1091,21 @@ function TaskDetailModal({
               ["in_progress", tr.statusInProgress],
               ["on_hold", tr.statusOnHold],
               ["done", tr.statusDone],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={"status-opt" + (displayStatus === key ? " active" : "")}
-                onClick={() => onSetStatus(task.id, key)}
-              >
-                {label}
-              </button>
-            ))}
+            ].map(([key, label]) => {
+              const c = STATUS_COLORS[key];
+              const isActive = displayStatus === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={"status-opt" + (isActive ? " active" : "")}
+                  style={isActive ? { background: c.ink, color: "#fff" } : { background: c.chip, color: c.ink }}
+                  onClick={() => onSetStatus(task.id, key)}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {subs.length > 0 && (
