@@ -31,7 +31,7 @@ body { background: #F1EBDD; overflow-x: hidden; }
   margin:26px 10px 10px; font-weight:600; }
 .rooms-toggle { display:flex; align-items:center; gap:11px; width:100%; text-align:left;
   padding:10px 12px; border-radius:13px; color:var(--side-ink); font-size:14.5px; font-weight:500;
-  transition:background .15s; margin-top:22px; }
+  transition:background .15s; margin-top:5px; }
 .rooms-toggle:hover { background:rgba(255,255,255,.06); }
 .reno .rooms-toggle-caret { margin-left:auto; color:var(--side-muted); flex:0 0 auto;
   transition:transform .18s ease; transform:rotate(-90deg); }
@@ -82,7 +82,7 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .overall-pct { font-size:16px; font-weight:700; }
 .settings-btn { display:flex; align-items:center; gap:11px; width:100%; text-align:left;
   padding:10px 12px; border-radius:13px; color:var(--side-ink); font-size:14.5px; font-weight:500;
-  transition:background .15s; margin-top:22px; }
+  transition:background .15s; margin-top:5px; }
 .settings-btn:hover { background:rgba(255,255,255,.06); }
 .settings-btn.active { background:rgba(255,255,255,.11); font-weight:600; }
 .bar { height:7px; border-radius:99px; background:rgba(255,255,255,.1); overflow:hidden; }
