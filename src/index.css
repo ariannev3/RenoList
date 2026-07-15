@@ -2,13 +2,13 @@
 
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; min-height: 100%; }
-body { background: #F1EBDD; overflow-x: hidden; }
+body { background: #FAF4E4; overflow-x: hidden; }
 
 .reno {
   --cream:#F1EBDD; --card:#FCFAF4; --ink:#26231D; --muted:#948F86;
   --line:rgba(38,35,29,.08); --sidebar:#181713; --side-ink:#EBE7DD; --side-muted:#8C877B;
   font-family:'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  color:var(--ink); background:var(--cream);
+  color:var(--ink); background:#FAF4E4;
   min-height:100vh; display:flex; -webkit-font-smoothing:antialiased;
 }
 .reno button { font-family:inherit; cursor:pointer; border:none; background:none; }
