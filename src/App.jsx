@@ -1099,7 +1099,7 @@ function TaskDetailModal({
   const subsDone = subs.filter((s) => s.done).length;
 
   return (
-    <div className="detail-overlay" onClick={onClose}>
+    <div className="reno detail-overlay" onClick={onClose}>
       <div className="detail-card" onClick={(e) => e.stopPropagation()}>
         <div className="detail-head">
           <div>
