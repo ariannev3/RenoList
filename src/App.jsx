@@ -207,6 +207,11 @@ const Icon = {
       <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  comment: (p) => (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" {...p}>
+      <path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  ),
   pencil: (p) => (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" {...p}>
       <path d="M4 20h4L18.5 9.5a2 2 0 000-2.8l-1.2-1.2a2 2 0 00-2.8 0L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -329,6 +334,32 @@ const dragStyle = (transform, transition, isDragging) => ({
   position: isDragging ? "relative" : undefined,
 });
 
+// Shared by task cards in a room's list and in the planner: a subtask-count
+// pill, a comment-count pill, and a completion bar. Always shown (even at 0)
+// so every card has the same shape and is quick to scan.
+function TaskCardMeta({ subsTotal, commentsTotal }) {
+  return (
+    <div className="task-meta">
+      <span className="meta-pill">
+        <Icon.tasks width={12} height={12} aria-hidden="true" />
+        {subsTotal}
+      </span>
+      <span className="meta-pill">
+        <Icon.comment aria-hidden="true" />
+        {commentsTotal}
+      </span>
+    </div>
+  );
+}
+function TaskCardBar({ subsDone, subsTotal, color }) {
+  const pct = subsTotal > 0 ? Math.round((subsDone / subsTotal) * 100) : 0;
+  return (
+    <div className="bar task-card-bar">
+      <i style={{ width: pct + "%", background: color.dot }} />
+    </div>
+  );
+}
+
 /* ------------------------------ planner ------------------------------ */
 const PLAN_BUCKETS = ["unscheduled", "today", "tomorrow", "nextWeek"];
 
@@ -353,7 +384,7 @@ function flattenOpenTasks(rooms) {
       flat.push({
         id: `${r.id}::${t.id}`,
         roomId: r.id, taskId: t.id, roomName: r.name, color,
-        text: t.text, subtasks: t.subtasks || [],
+        text: t.text, subtasks: t.subtasks || [], comments: t.comments || [],
         bucket: t.plan || "unscheduled", order: t.planOrder ?? 0,
       });
     });
@@ -366,9 +397,10 @@ function PlannerDropZone({ bucket }) {
   return <div ref={setNodeRef} className={"planner-dropzone" + (isOver ? " over" : "")} />;
 }
 
-function PlannerCard({ item, onToggle, onToggleSub }) {
+function PlannerCard({ item, onToggle, onOpenDetail }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const subs = item.subtasks || [];
+  const subsDone = subs.filter((s) => s.done).length;
   return (
     <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="planner-card">
       <button className="grip" {...attributes} {...listeners} aria-label="Drag">
@@ -378,23 +410,21 @@ function PlannerCard({ item, onToggle, onToggleSub }) {
         <div className="planner-card-row">
           <Check done={false} color={item.color} onClick={() => onToggle(item.roomId, item.taskId)} />
           <div className="planner-card-body">
-            <span className="planner-card-text">{item.text}</span>
+            <button
+              type="button"
+              className="planner-card-text task-title-btn"
+              onClick={() => onOpenDetail(item.roomId, item.taskId)}
+            >
+              {item.text}
+            </button>
             <span className="planner-card-room">
               <span className="planner-card-dot" style={{ background: item.color.dot }} />
               {item.roomName}
             </span>
           </div>
         </div>
-        {subs.length > 0 && (
-          <ul className="planner-sublist">
-            {subs.map((s) => (
-              <li key={s.id} className={"planner-subitem" + (s.done ? " done" : "")}>
-                <Check small done={s.done} color={item.color} onClick={() => onToggleSub(item.roomId, item.taskId, s.id)} />
-                <span className="planner-sub-text">{s.text}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
+        <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={item.color} />
       </div>
     </div>
   );
@@ -406,6 +436,7 @@ function PlannerCard({ item, onToggle, onToggleSub }) {
 // dragged over — unlike the real card, which only shifts within its own list.
 function PlannerCardPreview({ item }) {
   const subs = item.subtasks || [];
+  const subsDone = subs.filter((s) => s.done).length;
   return (
     <div className="planner-card planner-card-preview">
       <span className="grip" aria-hidden="true">
@@ -422,16 +453,8 @@ function PlannerCardPreview({ item }) {
             </span>
           </div>
         </div>
-        {subs.length > 0 && (
-          <ul className="planner-sublist">
-            {subs.map((s) => (
-              <li key={s.id} className={"planner-subitem" + (s.done ? " done" : "")}>
-                <span className="box sub" style={{ "--dot": item.color.dot, "--chip": item.color.chip }} />
-                <span className="planner-sub-text">{s.text}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
+        <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={item.color} />
       </div>
     </div>
   );
@@ -439,7 +462,7 @@ function PlannerCardPreview({ item }) {
 
 // The unscheduled pool grouped by room, collapsed by default — click a room
 // to reveal its open tasks (and drag them out to plan them).
-function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask, onToggleSub }) {
+function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask, onOpenDetail }) {
   return (
     <div className="planner-room-group">
       <button type="button" className="planner-room-head" onClick={onToggleExpand}>
@@ -451,7 +474,7 @@ function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask,
       {expanded && (
         <div className="planner-room-tasks">
           {items.map((item) => (
-            <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onToggleSub={onToggleSub} />
+            <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onOpenDetail={onOpenDetail} />
           ))}
         </div>
       )}
@@ -459,7 +482,7 @@ function PlannerRoomGroup({ room, items, expanded, onToggleExpand, onToggleTask,
   );
 }
 
-function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
+function Planner({ rooms, tr, onToggleTask, onOpenDetail, onMove }) {
   const flat = flattenOpenTasks(rooms);
   const byBucket = {};
   PLAN_BUCKETS.forEach((b) => {
@@ -549,7 +572,7 @@ function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
                           expanded={expandedRooms.has(g.room.id)}
                           onToggleExpand={() => toggleRoomExpanded(g.room.id)}
                           onToggleTask={onToggleTask}
-                          onToggleSub={onToggleSub}
+                          onOpenDetail={onOpenDetail}
                         />
                       ))}
                       <PlannerDropZone bucket={bucket} />
@@ -562,7 +585,7 @@ function Planner({ rooms, tr, onToggleTask, onToggleSub, onMove }) {
                         <p className="planner-empty">{tr.plannerEmptyBucket}</p>
                       )}
                       {byBucket[bucket].map((item) => (
-                        <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onToggleSub={onToggleSub} />
+                        <PlannerCard key={item.id} item={item} onToggle={onToggleTask} onOpenDetail={onOpenDetail} />
                       ))}
                       <PlannerDropZone bucket={bucket} />
                     </div>
@@ -629,33 +652,40 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail, onAddSub, 
     setAdding(false);
   };
 
+  const subsDone = subs.filter((s) => s.done).length;
+  const commentsTotal = (task.comments || []).length;
+
   return (
     <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="task-wrap">
-      <div className={"item" + (complete ? " done" : "")}>
-        <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
-          <Icon.grip />
-        </button>
-        <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
-        <div className="task-main">
-          <button type="button" className="item-text task-title-btn" onClick={() => onOpenDetail(task.id)}>
-            {task.text}
+      <div className={"task-card" + (complete ? " done" : "")}>
+        <div className="task-card-top">
+          <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
+            <Icon.grip />
           </button>
-          {onHold && <span className="hold-badge">{tr.statusOnHold}</span>}
-          {hasSubs && (
-            <button
-              className={"arrow" + (expanded ? " open" : "")}
-              onClick={() => setOverride(!expanded)}
-              aria-expanded={expanded}
-              aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
-            >
-              <Icon.caret />
+          <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
+          <div className="task-main">
+            <button type="button" className="item-text task-title-btn" onClick={() => onOpenDetail(task.id)}>
+              {task.text}
             </button>
-          )}
+            {onHold && <span className="hold-badge">{tr.statusOnHold}</span>}
+            {hasSubs && (
+              <button
+                className={"arrow" + (expanded ? " open" : "")}
+                onClick={() => setOverride(!expanded)}
+                aria-expanded={expanded}
+                aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
+              >
+                <Icon.caret />
+              </button>
+            )}
+          </div>
+          <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
+            <Icon.x />
+          </button>
         </div>
-        <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
-          <Icon.x />
-        </button>
-      </div>
+
+        <TaskCardMeta subsTotal={subs.length} commentsTotal={commentsTotal} />
+        <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={color} />
 
       {expanded && (
         <>
@@ -700,6 +730,7 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail, onAddSub, 
           )}
         </>
       )}
+      </div>
     </li>
   );
 }
@@ -935,7 +966,7 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
 }
 
 /* ------------------------------ home -------------------------------- */
-function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onToggleSub, onMoveTask }) {
+function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onOpenDetail, onMoveTask }) {
   return (
     <main className="main">
       <div className="head">
@@ -989,7 +1020,7 @@ function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, on
         </button>
       </div>
 
-      <Planner rooms={rooms} tr={tr} onToggleTask={onToggleTask} onToggleSub={onToggleSub} onMove={onMoveTask} />
+      <Planner rooms={rooms} tr={tr} onToggleTask={onToggleTask} onOpenDetail={onOpenDetail} onMove={onMoveTask} />
     </main>
   );
 }
@@ -1493,6 +1524,47 @@ export default function App() {
       ),
     }));
 
+  // The task detail popup can now open from the Planner too, which isn't
+  // scoped to any one room — so its edit handlers take an explicit roomId
+  // instead of assuming "the room currently open."
+  const detailRenameTask = (roomId, taskId, text) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, text } : t)),
+    }));
+  const detailAddSub = (roomId, taskId, text) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: [...(t.subtasks || []), { id: uid(), text, done: false }] }
+          : t
+      ),
+    }));
+  const detailDeleteSub = (roomId, taskId, subId) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).filter((s) => s.id !== subId) }
+          : t
+      ),
+    }));
+  const detailRenameSub = (roomId, taskId, subId, text) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).map((s) => (s.id === subId ? { ...s, text } : s)) }
+          : t
+      ),
+    }));
+  const detailReorderSub = (roomId, taskId, newSubs) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, subtasks: newSubs } : t)),
+    }));
+
   // Move/reorder a task between planner buckets (or within one). activeId/overId
   // are composite "roomId::taskId" strings, or overId can be "col:<bucket>" when
   // dropping into an empty (or trailing) part of a column.
@@ -1706,7 +1778,7 @@ export default function App() {
           onOpenRoom={(id) => { setActiveId(id); setView("room"); }}
           onAddRoom={() => setAdding(true)}
           onToggleTask={togglePlannerTask}
-          onToggleSub={togglePlannerSubtask}
+          onOpenDetail={(roomId, taskId) => setDetail({ roomId, taskId })}
           onMoveTask={movePlannerTask}
         />
       ) : !active ? (
@@ -1798,13 +1870,13 @@ export default function App() {
         color={colorAt(detailRoom.ci ?? rooms.indexOf(detailRoom))}
         tr={tr}
         onClose={() => setDetail(null)}
-        onRename={(taskId, text) => renameItem("tasks", taskId, text)}
+        onRename={(taskId, text) => detailRenameTask(detailRoom.id, taskId, text)}
         onSetStatus={(taskId, statusValue) => setTaskStatus(detailRoom.id, taskId, statusValue)}
-        onAddSub={addSubtask}
-        onToggleSub={toggleSubtask}
-        onDeleteSub={deleteSubtask}
-        onRenameSub={renameSubtask}
-        onReorderSub={reorderSubtasks}
+        onAddSub={(taskId, text) => detailAddSub(detailRoom.id, taskId, text)}
+        onToggleSub={(taskId, subId) => togglePlannerSubtask(detailRoom.id, taskId, subId)}
+        onDeleteSub={(taskId, subId) => detailDeleteSub(detailRoom.id, taskId, subId)}
+        onRenameSub={(taskId, subId, text) => detailRenameSub(detailRoom.id, taskId, subId, text)}
+        onReorderSub={(taskId, newSubs) => detailReorderSub(detailRoom.id, taskId, newSubs)}
         onAddComment={(taskId, text) => addTaskComment(detailRoom.id, taskId, text)}
       />
     )}

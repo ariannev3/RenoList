@@ -281,6 +281,27 @@ body { background: #F1EBDD; overflow-x: hidden; }
 .task-wrap { display:flex; flex-direction:column; }
 .task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
 
+.task-card { background:var(--cream); border-radius:14px; padding:10px 10px 12px; margin-bottom:8px;
+  transition:background .12s; }
+.task-card:hover { background:#EDE4D0; }
+.task-card:last-child { margin-bottom:0; }
+.task-card-top { display:flex; align-items:center; gap:10px; }
+.task-card.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
+.task-card:hover .del { opacity:1; }
+.task-card:hover .grip { opacity:1; }
+
+.task-meta { display:flex; gap:6px; margin-top:9px; }
+.meta-pill { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+  color:var(--muted); background:rgba(38,35,29,.05); padding:3px 8px; border-radius:999px;
+  font-variant-numeric:tabular-nums; }
+.meta-pill svg { flex:0 0 auto; }
+.task-card-bar { height:6px; margin-top:8px; background:rgba(38,35,29,.08); }
+/* room task cards: grip + checkbox precede the title, so indent to match */
+.task-card .task-meta, .task-card .task-card-bar { margin-left:68px; width:calc(100% - 68px); }
+/* planner cards: only the checkbox precedes the title within this inner column */
+.planner-card-main .task-meta, .planner-card-main .task-card-bar { margin-left:30px; width:calc(100% - 30px); }
+.task-card .sublist, .task-card .sub-add, .task-card .sub-add-btn { margin-top:10px; }
+
 /* drag handles */
 .reno .grip { flex:0 0 auto; display:flex; align-items:center; justify-content:center; width:26px; height:32px;
   color:#A29C8E; cursor:grab; touch-action:none; opacity:0; transition:opacity .12s, color .12s; }
