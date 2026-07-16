@@ -58,7 +58,7 @@ const TRANSLATIONS = {
     bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketNextWeek: "Next week",
     plannerEmptyPool: "All open tasks land here until you plan them.",
     plannerEmptyBucket: "Drag tasks here",
-    statusInProgress: "In progress", statusOnHold: "On hold", statusDone: "Done",
+    statusTodo: "To do", statusInProgress: "In progress", statusOnHold: "On hold", statusDone: "Done",
     subtasksComplete: "Subtasks complete", commentsLbl: "Comments",
     addCommentPh: "Add a comment…", noComments: "No comments yet.",
     yourNameLbl: "Your name", yourNameSub: "Shown on comments you leave on tasks.",
@@ -89,7 +89,7 @@ const TRANSLATIONS = {
     bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketNextWeek: "Volgende week",
     plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
     plannerEmptyBucket: "Sleep taken hierheen",
-    statusInProgress: "Bezig", statusOnHold: "Gepauzeerd", statusDone: "Klaar",
+    statusTodo: "Te doen", statusInProgress: "Bezig", statusOnHold: "Gepauzeerd", statusDone: "Klaar",
     subtasksComplete: "Subtaken voltooid", commentsLbl: "Reacties",
     addCommentPh: "Voeg een reactie toe…", noComments: "Nog geen reacties.",
     yourNameLbl: "Jouw naam", yourNameSub: "Zichtbaar bij reacties die je op taken achterlaat.",
@@ -252,18 +252,25 @@ const taskComplete = (t) => !!t.done;
 // Reuses the app's existing pastel palette (sky, yellow, sage) so status
 // colours stay consistent with everything else rather than introducing new hues.
 const STATUS_COLORS = {
+  todo: { chip: "#E7DEFA", dot: "#B79CEB", ink: "#4A3A72" },
   in_progress: { chip: "#DEEAFB", dot: "#89B4EF", ink: "#2F4E7C" },
   on_hold: { chip: "#FBEFC6", dot: "#EFC85F", ink: "#7A5B12" },
   done: { chip: "#E1EEDB", dot: "#94C285", ink: "#3C5E30" },
 };
-const taskStatusKey = (t) => (t.done ? "done" : t.status === "on_hold" ? "on_hold" : "in_progress");
+// A task only counts as "in progress" once it's explicitly been set that way;
+// otherwise it's still "to do" — not started, not paused, not finished.
+const taskStatusKey = (t) => {
+  if (t.done) return "done";
+  if (t.status === "on_hold" || t.status === "in_progress") return t.status;
+  return "todo";
+};
 
 function StatusPill({ statusKey, tr }) {
   const c = STATUS_COLORS[statusKey];
-  const label = statusKey === "done" ? tr.statusDone : statusKey === "on_hold" ? tr.statusOnHold : tr.statusInProgress;
+  const labels = { todo: tr.statusTodo, in_progress: tr.statusInProgress, on_hold: tr.statusOnHold, done: tr.statusDone };
   return (
     <span className="status-pill" style={{ background: c.chip, color: c.ink, borderColor: c.dot }}>
-      {label}
+      {labels[statusKey]}
     </span>
   );
 }
@@ -1042,7 +1049,7 @@ function TaskDetailModal({
 }) {
   const subs = task.subtasks || [];
   const comments = task.comments || [];
-  const displayStatus = task.done ? "done" : (task.status === "on_hold" ? "on_hold" : "in_progress");
+  const displayStatus = taskStatusKey(task);
 
   const [subText, setSubText] = useState("");
   const [commentText, setCommentText] = useState("");
@@ -1085,6 +1092,7 @@ function TaskDetailModal({
         <div className="detail-body">
           <div className="status-segmented">
             {[
+              ["todo", tr.statusTodo],
               ["in_progress", tr.statusInProgress],
               ["on_hold", tr.statusOnHold],
               ["done", tr.statusDone],
