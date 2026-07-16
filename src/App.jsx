@@ -431,10 +431,9 @@ function PlannerCard({ item, tr, onToggle, onOpenDetail }) {
       ref={setNodeRef}
       style={dragStyle(transform, transition, isDragging)}
       className="planner-card"
+      {...attributes}
+      {...listeners}
     >
-      <button className="grip" {...attributes} {...listeners} aria-label="Drag">
-        <Icon.grip />
-      </button>
       <div className="planner-card-main">
         <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
         <div className="planner-card-row">
@@ -467,9 +466,6 @@ function PlannerCardPreview({ item, tr }) {
   const subsDone = subs.filter((s) => s.done).length;
   return (
     <div className="planner-card planner-card-preview">
-      <span className="grip" aria-hidden="true">
-        <Icon.grip />
-      </span>
       <div className="planner-card-main">
         <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
         <div className="planner-card-row">
@@ -660,7 +656,11 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
 
   return (
     <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="task-wrap">
-      <div className={"task-card" + (complete ? " done" : "")}>
+      <div
+        className={"task-card" + (complete ? " done" : "")}
+        {...attributes}
+        {...listeners}
+      >
         <div className="task-card-head">
           <StatusPill statusKey={statusKey} tr={tr} />
           <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
@@ -668,9 +668,6 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
           </button>
         </div>
         <div className="task-card-top">
-          <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
-            <Icon.grip />
-          </button>
           <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
           <button type="button" className="item-text task-title-btn task-title-grow" onClick={() => onOpenDetail(task.id)}>
             {task.text}
@@ -716,11 +713,9 @@ function RoomRow({ room, ci, active, editing, editName, onSelect, onStartEdit, o
   return (
     <div ref={setNodeRef} style={dragStyle(transform, transition, isDragging)}
          className={"room-btn" + (active ? " active" : "")}
-         onClick={() => !editing && onSelect()}>
-      <button className="grip room-grip" {...attributes} {...listeners}
-              onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
-        <Icon.grip />
-      </button>
+         onClick={() => !editing && onSelect()}
+         {...attributes}
+         {...listeners}>
       <ColorPicker ci={ci} onPick={onPickColor} />
       {editing ? (
         <input autoFocus className="name-input" value={editName}
