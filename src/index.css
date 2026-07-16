@@ -163,10 +163,9 @@ body { background: #FAF4E4; overflow-x: hidden; }
   border-radius:13px; padding:12px 14px; }
 .planner-card:hover .grip { opacity:1; margin-top:2px; }
 .planner-card .grip { margin-top:2px; }
-.planner-card-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.planner-card-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
 .planner-card-row { display:flex; align-items:center; gap:8px; }
-.planner-card-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.planner-card-text { font-size:13.5px; font-weight:600; color:var(--ink); word-break:break-word; }
+.planner-card-text { flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--ink); word-break:break-word; }
 .planner-card-room { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--muted); }
 .planner-card-preview { box-shadow:0 14px 34px rgba(38,35,29,.22); cursor:grabbing; pointer-events:none; }
 .planner-card-dot { width:7px; height:7px; border-radius:50%; flex:0 0 7px; }
@@ -279,23 +278,26 @@ body { background: #FAF4E4; overflow-x: hidden; }
 
 /* subtasks */
 .task-wrap { display:flex; flex-direction:column; }
-.task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
 
 .task-card { background:#EDE7D9; border-radius:14px; padding:14px 16px 16px; }
+.task-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
 .task-card-top { display:flex; align-items:center; gap:10px; }
+.task-title-grow { flex:1; min-width:0; }
 .task-card.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .task-card:hover .del { opacity:1; }
 .task-card:hover .grip { opacity:1; }
 
-.task-meta { display:flex; gap:14px; margin-top:9px; }
-.meta-pill { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+/* labeled progress section: "Subtasks complete   3/5" + bar */
+.task-card-progress { margin-top:12px; }
+.task-card-progress-top { display:flex; justify-content:space-between; align-items:baseline;
+  margin-bottom:6px; font-size:11px; font-weight:600; color:var(--muted); }
+.task-card-progress-num { font-size:12.5px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+.task-card-bar { height:6px; background:rgba(38,35,29,.08); }
+
+.task-meta { display:flex; gap:16px; margin-top:12px; }
+.meta-pill { display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700;
   color:var(--muted); font-variant-numeric:tabular-nums; }
 .meta-pill svg { flex:0 0 auto; }
-.task-card-bar { height:6px; margin-top:8px; background:rgba(38,35,29,.08); }
-/* room task cards: grip + checkbox precede the title, so indent to match */
-.task-card .task-meta, .task-card .task-card-bar { margin-left:68px; width:calc(100% - 68px); }
-/* planner cards: only the checkbox precedes the title within this inner column */
-.planner-card-main .task-meta, .planner-card-main .task-card-bar { margin-left:30px; width:calc(100% - 30px); }
 .task-card .sublist, .task-card .sub-add, .task-card .sub-add-btn { margin-top:10px; }
 
 /* drag handles */

@@ -358,21 +358,29 @@ function TaskCardMeta({ subsTotal, commentsTotal }) {
   return (
     <div className="task-meta">
       <span className="meta-pill">
-        <Icon.tasks width={12} height={12} aria-hidden="true" />
+        <Icon.tasks width={16} height={16} aria-hidden="true" />
         {subsTotal}
       </span>
       <span className="meta-pill">
-        <Icon.comment aria-hidden="true" />
+        <Icon.comment width={16} height={16} aria-hidden="true" />
         {commentsTotal}
       </span>
     </div>
   );
 }
-function TaskCardBar({ subsDone, subsTotal, color }) {
-  const pct = subsTotal > 0 ? Math.round((subsDone / subsTotal) * 100) : 0;
+function TaskCardProgress({ subsDone, subsTotal, complete, color, tr }) {
+  // With no subtasks, a done task still reads as "fully progressed";
+  // otherwise progress tracks how many subtasks are checked off.
+  const pct = subsTotal > 0 ? Math.round((subsDone / subsTotal) * 100) : (complete ? 100 : 0);
   return (
-    <div className="bar task-card-bar">
-      <i style={{ width: pct + "%", background: color.dot }} />
+    <div className="task-card-progress">
+      <div className="task-card-progress-top">
+        <span>{tr.subtasksComplete}</span>
+        <span className="task-card-progress-num">{subsDone}/{subsTotal}</span>
+      </div>
+      <div className="bar task-card-bar">
+        <i style={{ width: pct + "%", background: color.dot }} />
+      </div>
     </div>
   );
 }
@@ -428,25 +436,23 @@ function PlannerCard({ item, tr, onToggle, onOpenDetail }) {
         <Icon.grip />
       </button>
       <div className="planner-card-main">
+        <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
         <div className="planner-card-row">
           <Check done={false} color={item.color} onClick={() => onToggle(item.roomId, item.taskId)} />
-          <div className="planner-card-body">
-            <button
-              type="button"
-              className="planner-card-text task-title-btn"
-              onClick={() => onOpenDetail(item.roomId, item.taskId)}
-            >
-              {item.text}
-            </button>
-            <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
-            <span className="planner-card-room">
-              <span className="planner-card-dot" style={{ background: item.color.dot }} />
-              {item.roomName}
-            </span>
-          </div>
+          <button
+            type="button"
+            className="planner-card-text task-title-btn"
+            onClick={() => onOpenDetail(item.roomId, item.taskId)}
+          >
+            {item.text}
+          </button>
         </div>
+        <span className="planner-card-room">
+          <span className="planner-card-dot" style={{ background: item.color.dot }} />
+          {item.roomName}
+        </span>
+        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={false} color={item.color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
-        <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={item.color} />
       </div>
     </div>
   );
@@ -465,19 +471,17 @@ function PlannerCardPreview({ item, tr }) {
         <Icon.grip />
       </span>
       <div className="planner-card-main">
+        <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
         <div className="planner-card-row">
           <span className="box" style={{ "--dot": item.color.dot, "--chip": item.color.chip }} />
-          <div className="planner-card-body">
-            <span className="planner-card-text">{item.text}</span>
-            <StatusPill statusKey={taskStatusKey({ done: false, status: item.status })} tr={tr} />
-            <span className="planner-card-room">
-              <span className="planner-card-dot" style={{ background: item.color.dot }} />
-              {item.roomName}
-            </span>
-          </div>
+          <span className="planner-card-text">{item.text}</span>
         </div>
+        <span className="planner-card-room">
+          <span className="planner-card-dot" style={{ background: item.color.dot }} />
+          {item.roomName}
+        </span>
+        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={false} color={item.color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
-        <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={item.color} />
       </div>
     </div>
   );
@@ -657,23 +661,23 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
   return (
     <li ref={setNodeRef} style={dragStyle(transform, transition, isDragging)} className="task-wrap">
       <div className={"task-card" + (complete ? " done" : "")}>
+        <div className="task-card-head">
+          <StatusPill statusKey={statusKey} tr={tr} />
+          <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
+            <Icon.x />
+          </button>
+        </div>
         <div className="task-card-top">
           <button className="grip" {...attributes} {...listeners} aria-label="Drag to reorder">
             <Icon.grip />
           </button>
           <Check done={complete} color={color} onClick={() => onToggle(task.id)} />
-          <div className="task-main">
-            <button type="button" className="item-text task-title-btn" onClick={() => onOpenDetail(task.id)}>
-              {task.text}
-            </button>
-            <StatusPill statusKey={statusKey} tr={tr} />
-          </div>
-          <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
-            <Icon.x />
+          <button type="button" className="item-text task-title-btn task-title-grow" onClick={() => onOpenDetail(task.id)}>
+            {task.text}
           </button>
         </div>
+        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={complete} color={color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={commentsTotal} />
-        <TaskCardBar subsDone={subsDone} subsTotal={subs.length} color={color} />
       </div>
     </li>
   );
