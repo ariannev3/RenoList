@@ -2,13 +2,13 @@
 
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; min-height: 100%; }
-body { background: #EDE7D9; overflow-x: hidden; }
+body { background: #FAF4E4; overflow-x: hidden; }
 
 .reno {
   --cream:#F1EBDD; --card:#FCFAF4; --ink:#26231D; --muted:#948F86;
   --line:rgba(38,35,29,.08); --sidebar:#181713; --side-ink:#EBE7DD; --side-muted:#8C877B;
   font-family:'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  color:var(--ink); background:#EDE7D9;
+  color:var(--ink); background:#FAF4E4;
   min-height:100vh; display:flex; -webkit-font-smoothing:antialiased;
 }
 .reno button { font-family:inherit; cursor:pointer; border:none; background:none; }
@@ -149,7 +149,7 @@ body { background: #EDE7D9; overflow-x: hidden; }
 .planner-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
 .planner-col { border-radius:18px;
   padding:14px; display:flex; flex-direction:column; min-height:180px; }
-.planner-col.tray { background:#FAF3E3; }
+.planner-col.tray { background:#FFFBF0; }
 .planner-col.tray .planner-count { background:rgba(38,35,29,.07); }
 .planner-col-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
   font-size:13px; font-weight:700; color:var(--ink); }
@@ -159,7 +159,7 @@ body { background: #EDE7D9; overflow-x: hidden; }
 .planner-empty { font-size:12px; color:var(--muted); text-align:center; padding:14px 6px; margin:0; }
 .planner-dropzone { flex:1; min-height:14px; border-radius:10px; transition:background .12s; }
 .planner-dropzone.over { background:rgba(38,35,29,.07); }
-.planner-card { display:flex; align-items:flex-start; gap:10px; background:#FAF3E3;
+.planner-card { display:flex; align-items:flex-start; gap:10px; background:#EDE7D9;
   border-radius:13px; padding:12px 14px; }
 .planner-card:hover .grip { opacity:1; margin-top:2px; }
 .planner-card .grip { margin-top:2px; }
@@ -281,7 +281,7 @@ body { background: #EDE7D9; overflow-x: hidden; }
 .task-wrap { display:flex; flex-direction:column; }
 .task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
 
-.task-card { background:#FAF3E3; border-radius:14px; padding:14px 16px 16px; }
+.task-card { background:#EDE7D9; border-radius:14px; padding:14px 16px 16px; }
 .task-card-top { display:flex; align-items:center; gap:10px; }
 .task-card.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .task-card:hover .del { opacity:1; }
