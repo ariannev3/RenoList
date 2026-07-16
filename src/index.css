@@ -226,9 +226,9 @@ body { background: #FAF4E4; overflow-x: hidden; }
   background:var(--cream); padding:4px 10px; border-radius:99px; font-variant-numeric:tabular-nums; }
 
 .add-row { display:flex; gap:8px; margin-bottom:10px; }
-.add-input { flex:1; min-width:0; background:var(--cream); border:1px solid transparent; border-radius:12px;
+.add-input { flex:1; min-width:0; background:transparent; border:1px solid #BBB6AC; border-radius:12px;
   padding:11px 13px; font-size:14px; color:var(--ink); outline:none; transition:border .15s, background .15s; }
-.add-input:focus { border-color:var(--line); background:#fff; }
+.add-input:focus { border-color:#BBB6AC; background:#FFFBF0; }
 .add-input::placeholder { color:var(--muted); }
 .add-amt { flex:0 0 88px; text-align:right; }
 .add-btn { flex:0 0 auto; width:42px; border-radius:12px; color:#fff; display:flex; align-items:center;
