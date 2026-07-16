@@ -161,7 +161,7 @@ body { background: #F3E8D2; overflow-x: hidden; }
 .planner-dropzone.over { background:rgba(38,35,29,.07); }
 .planner-card { display:flex; align-items:flex-start; gap:10px; background:#FAF3E3;
   border-radius:13px; padding:12px 14px; transition:background .12s, transform .12s, box-shadow .12s; }
-.planner-card:hover { background:#F1E3BB; transform:translateY(-1px); box-shadow:0 4px 14px rgba(38,35,29,.1); }
+.planner-card:hover { box-shadow:inset 0 0 0 999px rgba(38,35,29,.05), 0 4px 14px rgba(38,35,29,.1); transform:translateY(-1px); }
 .planner-card:hover .grip { opacity:1; margin-top:2px; }
 .planner-card .grip { margin-top:2px; }
 .planner-card-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
@@ -283,7 +283,7 @@ body { background: #F3E8D2; overflow-x: hidden; }
 .task-main { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
 
 .task-card { background:#FAF3E3; border-radius:14px; padding:14px 16px 16px; transition:background .12s, transform .12s, box-shadow .12s; }
-.task-card:hover { background:#F1E3BB; transform:translateY(-1px); box-shadow:0 4px 14px rgba(38,35,29,.1); }
+.task-card:hover { box-shadow:inset 0 0 0 999px rgba(38,35,29,.05), 0 4px 14px rgba(38,35,29,.1); transform:translateY(-1px); }
 .task-card-top { display:flex; align-items:center; gap:10px; }
 .task-card.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .task-card:hover .del { opacity:1; }
