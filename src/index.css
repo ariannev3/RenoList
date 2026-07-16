@@ -149,7 +149,7 @@ body { background: #F3E8D2; overflow-x: hidden; }
 .planner-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
 .planner-col { border-radius:18px;
   padding:14px; display:flex; flex-direction:column; min-height:180px; }
-.planner-col.tray { background:#FAF3E3; border-color:#E3D3A8; border-style:dashed; }
+.planner-col.tray { background:#FAF3E3; }
 .planner-col.tray .planner-count { background:rgba(38,35,29,.07); }
 .planner-col-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
   font-size:13px; font-weight:700; color:var(--ink); }

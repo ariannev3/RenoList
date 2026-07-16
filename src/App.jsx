@@ -18,12 +18,10 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 
 // Soft pastel palettes, one per room. New rooms cycle through these.
 const ROOM_COLORS = [
-  { key: "lavender", dot: "#B79CEB", chip: "#E7DEFA", ring: "#C9B4F2", ink: "#4A3A72" },
-  { key: "peach",    dot: "#F0A184", chip: "#FBE0D5", ring: "#F4B49E", ink: "#7A4230" },
-  { key: "sky",      dot: "#89B4EF", chip: "#DEEAFB", ring: "#A9C7F3", ink: "#2F4E7C" },
-  { key: "yellow",   dot: "#EFC85F", chip: "#FBEFC6", ring: "#F2D888", ink: "#7A5B12" },
-  { key: "sage",     dot: "#94C285", chip: "#E1EEDB", ring: "#B4D6A8", ink: "#3C5E30" },
-  { key: "pink",     dot: "#EE9BBC", chip: "#FADCE7", ring: "#F3B9CE", ink: "#7A314F" },
+  { key: "pink",   dot: "#F8B6D9", chip: "#FCE3F0", ring: "#F9C7E1", ink: "#7A3560" },
+  { key: "olive",  dot: "#9AAB64", chip: "#E4E8D2", ring: "#B9C591", ink: "#47512A" },
+  { key: "blue",   dot: "#B6CAEB", chip: "#E4EBF8", ring: "#CBDAF1", ink: "#33517E" },
+  { key: "yellow", dot: "#F6D868", chip: "#FBF0C7", ring: "#F8E29A", ink: "#7A5D12" },
 ];
 const colorAt = (i) => ROOM_COLORS[i % ROOM_COLORS.length];
 
