@@ -63,6 +63,7 @@ const TRANSLATIONS = {
     addCommentPh: "Add a comment…", noComments: "No comments yet.",
     yourNameLbl: "Your name", yourNameSub: "Shown on comments you leave on tasks.",
     yourNamePh: "e.g. Alex", defaultCommenter: "You", subtasksLbl: "Subtasks",
+    themeLbl: "Theme", themeAuto: "Auto", themeLight: "Light", themeDark: "Dark",
   },
   nl: {
     dashboard: "Dashboard", settings: "Instellingen", rooms: "Kamers", newRoom: "Nieuwe kamer",
@@ -94,6 +95,7 @@ const TRANSLATIONS = {
     addCommentPh: "Voeg een reactie toe…", noComments: "Nog geen reacties.",
     yourNameLbl: "Jouw naam", yourNameSub: "Zichtbaar bij reacties die je op taken achterlaat.",
     yourNamePh: "bijv. Alex", defaultCommenter: "Jij", subtasksLbl: "Subtaken",
+    themeLbl: "Thema", themeAuto: "Auto", themeLight: "Licht", themeDark: "Donker",
   },
 };
 
@@ -1223,6 +1225,26 @@ export default function App() {
     try { localStorage.setItem(NAME_KEY, commenterName); } catch { /* ignore */ }
   }, [commenterName]);
 
+  // Theme: "auto" (follow the OS), "light", or "dark". Applied as data-theme
+  // on <html> so both the board and the task-detail modal pick it up.
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("reno-theme") || "auto"; } catch { return "auto"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("reno-theme", theme); } catch { /* ignore */ }
+    const root = document.documentElement;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const dark = theme === "dark" || (theme === "auto" && mq.matches);
+      root.setAttribute("data-theme", dark ? "dark" : "light");
+    };
+    apply();
+    if (theme === "auto") {
+      mq.addEventListener("change", apply);
+      return () => mq.removeEventListener("change", apply);
+    }
+  }, [theme]);
+
   // Which task's detail popup is open, if any: { roomId, taskId } or null.
   const [detail, setDetail] = useState(null);
   // Resolve the popup's live data fresh from `rooms` each render, so it
@@ -1645,6 +1667,21 @@ export default function App() {
           >
             <Icon.settings /> {tr.settings}
           </button>
+
+          <span className="theme-seg-lbl">{tr.themeLbl}</span>
+          <div className="theme-seg" role="group" aria-label={tr.themeLbl}>
+            {[["auto", tr.themeAuto], ["light", tr.themeLight], ["dark", tr.themeDark]].map(([v, lbl]) => (
+              <button
+                key={v}
+                type="button"
+                className={theme === v ? "on" : ""}
+                aria-pressed={theme === v}
+                onClick={() => setTheme(v)}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
       </aside>
 
