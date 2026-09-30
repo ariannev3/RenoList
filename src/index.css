@@ -16,6 +16,10 @@ body { background: #FAF4E4; overflow-x: hidden; }
 }
 .reno button { font-family:inherit; cursor:pointer; border:none; background:none; }
 .reno input { font-family:inherit; }
+/* Form controls don't inherit text colour by default (browsers paint them black),
+   which left button-based task titles black in dark mode. :where() keeps this at
+   zero specificity, so any control with its own colour rule is unaffected. */
+:where(.reno) :where(button, input, textarea, select) { color:inherit; }
 
 /* sidebar */
 .side { width:280px; flex:0 0 280px; background:var(--sidebar); color:var(--side-ink);
