@@ -54,8 +54,9 @@ const TRANSLATIONS = {
     languageLbl: "Language", languageSub: "Changes the text shown throughout the board on this device.",
     english: "English", dutch: "Nederlands",
     statusLbl: "Board status", statusSub: "Whether changes are syncing to the shared database.",
-    planner: "Planner", plannerSub: "Drag your open tasks into when you want to do them.",
-    bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketNextWeek: "Next week",
+    planner: "Planner", plannerSub: "Drag your open tasks into when you want to do them. Dates move along by themselves.",
+    bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketLater: "Later",
+    overdue: "Overdue", plannedFor: "Planned for", clearDate: "Clear", locale: "en-GB",
     plannerEmptyPool: "All open tasks land here until you plan them.",
     plannerEmptyBucket: "Drag tasks here",
     statusTodo: "To do", statusInProgress: "In progress", statusOnHold: "On hold", statusDone: "Done",
@@ -86,8 +87,9 @@ const TRANSLATIONS = {
     languageLbl: "Taal", languageSub: "Wijzigt de tekst die op het bord wordt getoond op dit apparaat.",
     english: "English", dutch: "Nederlands",
     statusLbl: "Bordstatus", statusSub: "Of wijzigingen worden gesynchroniseerd met de gedeelde database.",
-    planner: "Planning", plannerSub: "Sleep je openstaande taken naar wanneer je ze wilt doen.",
-    bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketNextWeek: "Volgende week",
+    planner: "Planning", plannerSub: "Sleep je openstaande taken naar wanneer je ze wilt doen. Datums schuiven vanzelf mee.",
+    bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketLater: "Later",
+    overdue: "Te laat", plannedFor: "Gepland op", clearDate: "Wissen", locale: "nl-NL",
     plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
     plannerEmptyBucket: "Sleep taken hierheen",
     statusTodo: "Te doen", statusInProgress: "Bezig", statusOnHold: "Gepauzeerd", statusDone: "Klaar",
@@ -395,7 +397,77 @@ function TaskCardProgress({ subsDone, subsTotal, complete, color, tr }) {
 }
 
 /* ------------------------------ planner ------------------------------ */
-const PLAN_BUCKETS = ["unscheduled", "today", "tomorrow", "nextWeek"];
+const PLAN_BUCKETS = ["unscheduled", "today", "tomorrow", "later"];
+
+// Planning is stored as a real calendar date ("YYYY-MM-DD", local time) in
+// task.planDate. The column a task appears in is worked out from that date on
+// every render, so "Tomorrow" becomes "Today" on its own and missed dates show
+// up as overdue. (Older boards stored a fixed label in task.plan; see
+// migratePlans below.)
+const pad2 = (n) => String(n).padStart(2, "0");
+const dateKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayKey = () => dateKey(new Date());
+const addDays = (key, n) => {
+  const [y, m, d] = key.split("-").map(Number);
+  return dateKey(new Date(y, m - 1, d + n));
+};
+const LATER_DEFAULT_DAYS = 7;
+
+function planBucket(planDate, today) {
+  if (!planDate) return "unscheduled";
+  if (planDate <= today) return "today";          // overdue tasks surface in Today
+  if (planDate === addDays(today, 1)) return "tomorrow";
+  return "later";
+}
+
+// Formats a plan date for display, e.g. "Mon 5 Oct" / "ma 5 okt".
+function formatPlanDate(planDate, locale) {
+  const [y, m, d] = planDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
+}
+
+// One-time conversion of the old label-based plans to dates, counted from the
+// day this runs. It only ADDS planDate and leaves the old label alone, so a
+// device still on the previous version keeps showing the same columns during
+// the switch-over. Once a task has a planDate, the date wins. Returns the same
+// array when nothing needed converting.
+const LEGACY_PLAN_OFFSET = { today: 0, tomorrow: 1, nextWeek: 7 };
+const needsPlanDate = (t) => !t.planDate && t.plan != null && t.plan in LEGACY_PLAN_OFFSET;
+function migratePlans(rooms, today) {
+  if (!rooms.some((r) => (r.tasks || []).some(needsPlanDate))) return rooms;
+  return rooms.map((r) => ({
+    ...r,
+    tasks: (r.tasks || []).map((t) =>
+      needsPlanDate(t) ? { ...t, planDate: addDays(today, LEGACY_PLAN_OFFSET[t.plan]) } : t
+    ),
+  }));
+}
+
+// Keeps a "today" date key that updates when the day changes (checked every
+// minute and whenever the tab comes back into view).
+function useToday() {
+  const [today, setToday] = useState(todayKey);
+  useEffect(() => {
+    const tick = () => setToday(todayKey());
+    const id = setInterval(tick, 60000);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("focus", tick);
+    };
+  }, []);
+  return today;
+}
+
+// Display order inside a column: dated columns go by date first (so overdue
+// tasks lead Today), then by the order you dragged them into.
+function sortBucketItems(items) {
+  return [...items].sort((a, b) =>
+    (a.planDate || "").localeCompare(b.planDate || "") || a.order - b.order
+  );
+}
 
 // closestCenter alone compares the pointer to every card on the whole board,
 // so it can "snap" toward a neighbouring column even while the pointer is
@@ -409,7 +481,7 @@ function plannerCollisionDetection(args) {
 
 // Flattens every open (not-done) task across every room into one list,
 // each tagged with its room's colour/name, its subtasks, and its planner bucket.
-function flattenOpenTasks(rooms) {
+function flattenOpenTasks(rooms, today) {
   const flat = [];
   rooms.forEach((r, ri) => {
     const color = colorAt(r.ci ?? ri);
@@ -419,11 +491,23 @@ function flattenOpenTasks(rooms) {
         id: `${r.id}::${t.id}`,
         roomId: r.id, taskId: t.id, roomName: r.name, color,
         text: t.text, subtasks: t.subtasks || [], comments: t.comments || [], status: t.status,
-        bucket: t.plan || "unscheduled", order: t.planOrder ?? 0,
+        planDate: t.planDate || null, bucket: planBucket(t.planDate, today),
+        overdue: !!t.planDate && t.planDate < today, order: t.planOrder ?? 0,
       });
     });
   });
   return flat;
+}
+
+// Date shown on a planner card: only when it adds information (a "Later" date,
+// or how long an overdue task has been waiting).
+function PlanDateBadge({ item, tr }) {
+  if (!item.planDate || !(item.overdue || item.bucket === "later")) return null;
+  return (
+    <span className={"planner-card-date" + (item.overdue ? " overdue" : "")}>
+      {item.overdue ? `${tr.overdue} · ` : ""}{formatPlanDate(item.planDate, tr.locale)}
+    </span>
+  );
 }
 
 function PlannerDropZone({ bucket }) {
@@ -455,10 +539,13 @@ function PlannerCard({ item, tr, onToggle, onOpenDetail }) {
             {item.text}
           </button>
         </div>
-        <span className="planner-card-room">
-          <span className="planner-card-dot" style={{ background: item.color.dot }} />
-          {item.roomName}
-        </span>
+        <div className="planner-card-sub">
+          <span className="planner-card-room">
+            <span className="planner-card-dot" style={{ background: item.color.dot }} />
+            {item.roomName}
+          </span>
+          <PlanDateBadge item={item} tr={tr} />
+        </div>
         <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={false} color={item.color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
       </div>
@@ -481,10 +568,13 @@ function PlannerCardPreview({ item, tr }) {
           <span className="box" style={{ "--dot": item.color.dot, "--chip": item.color.chip }} />
           <span className="planner-card-text">{item.text}</span>
         </div>
-        <span className="planner-card-room">
-          <span className="planner-card-dot" style={{ background: item.color.dot }} />
-          {item.roomName}
-        </span>
+        <div className="planner-card-sub">
+          <span className="planner-card-room">
+            <span className="planner-card-dot" style={{ background: item.color.dot }} />
+            {item.roomName}
+          </span>
+          <PlanDateBadge item={item} tr={tr} />
+        </div>
         <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={false} color={item.color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
       </div>
@@ -514,11 +604,11 @@ function PlannerRoomGroup({ room, items, tr, expanded, onToggleExpand, onToggleT
   );
 }
 
-function Planner({ rooms, tr, onToggleTask, onOpenDetail, onMove }) {
-  const flat = flattenOpenTasks(rooms);
+function Planner({ rooms, today, tr, onToggleTask, onOpenDetail, onMove }) {
+  const flat = flattenOpenTasks(rooms, today);
   const byBucket = {};
   PLAN_BUCKETS.forEach((b) => {
-    byBucket[b] = flat.filter((x) => x.bucket === b).sort((a, b2) => a.order - b2.order);
+    byBucket[b] = sortBucketItems(flat.filter((x) => x.bucket === b));
   });
 
   // Which rooms are expanded in the Unscheduled tray (collapsed by default).
@@ -552,7 +642,7 @@ function Planner({ rooms, tr, onToggleTask, onOpenDetail, onMove }) {
 
   const labels = {
     unscheduled: tr.bucketUnscheduled, today: tr.bucketToday,
-    tomorrow: tr.bucketTomorrow, nextWeek: tr.bucketNextWeek,
+    tomorrow: tr.bucketTomorrow, later: tr.bucketLater,
   };
 
   // Group the unscheduled pool by room, preserving room order, skipping empty rooms.
@@ -912,7 +1002,7 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
 }
 
 /* ------------------------------ home -------------------------------- */
-function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onOpenDetail, onMoveTask }) {
+function Home({ rooms, today, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onOpenDetail, onMoveTask }) {
   return (
     <main className="main">
       <div className="head">
@@ -966,7 +1056,7 @@ function Home({ rooms, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, on
         </button>
       </div>
 
-      <Planner rooms={rooms} tr={tr} onToggleTask={onToggleTask} onOpenDetail={onOpenDetail} onMove={onMoveTask} />
+      <Planner rooms={rooms} today={today} tr={tr} onToggleTask={onToggleTask} onOpenDetail={onOpenDetail} onMove={onMoveTask} />
     </main>
   );
 }
@@ -1046,7 +1136,7 @@ function timeAgo(ts, tr) {
 }
 
 function TaskDetailModal({
-  task, room, color, tr, onClose, onRename, onSetStatus,
+  task, room, color, tr, onClose, onRename, onSetStatus, onSetPlanDate,
   onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub, onAddComment,
 }) {
   const subs = task.subtasks || [];
@@ -1115,6 +1205,24 @@ function TaskDetailModal({
                 </button>
               );
             })}
+          </div>
+
+          <div className="detail-plan">
+            <label className="detail-plan-lbl" htmlFor="detail-plan-date">{tr.plannedFor}</label>
+            <div className="detail-plan-row">
+              <input
+                id="detail-plan-date"
+                type="date"
+                className="detail-plan-input"
+                value={task.planDate || ""}
+                onChange={(e) => onSetPlanDate(task.id, e.target.value || null)}
+              />
+              {task.planDate && (
+                <button type="button" className="detail-plan-clear" onClick={() => onSetPlanDate(task.id, null)}>
+                  {tr.clearDate}
+                </button>
+              )}
+            </div>
           </div>
 
           {subs.length > 0 && (
@@ -1255,6 +1363,7 @@ export default function App() {
     if (detail && !detailTaskObj) setDetail(null); // task was deleted elsewhere — close cleanly
   }, [detail, detailTaskObj]);
   const tr = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  const today = useToday();
 
   const [roomsOpen, setRoomsOpen] = useState(true);
 
@@ -1321,6 +1430,10 @@ export default function App() {
         if (!data || !data.length) {
           data = seed();          // first ever run — plant the starter board
           await saveBoard(data);
+        } else {
+          // convert old label-based plans ("tomorrow") to real dates, once
+          const migrated = migratePlans(data, todayKey());
+          if (migrated !== data) { data = migrated; await saveBoard(data); }
         }
         applyingRemote.current = true;
         setRooms(data);
@@ -1343,8 +1456,10 @@ export default function App() {
           "postgres_changes",
           { event: "*", schema: "public", table: "board", filter: `id=eq.${BOARD_ID}` },
           (payload) => {
-            const incoming = payload.new && payload.new.data;
-            if (!incoming) return;
+            const raw = payload.new && payload.new.data;
+            if (!raw) return;
+            // a device still running the old version may write label-based plans
+            const incoming = migratePlans(raw, todayKey());
             // ignore the echo of our own save
             if (JSON.stringify(incoming) === JSON.stringify(roomsRef.current)) return;
             applyingRemote.current = true;
@@ -1416,6 +1531,15 @@ export default function App() {
       tasks: r.tasks.map((t) =>
         t.id === taskId ? { ...t, done: statusValue === "done", status: statusValue } : t
       ),
+    }));
+  const setTaskPlanDate = (roomId, taskId, planDate) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => {
+        if (t.id !== taskId) return t;
+        const { plan, ...rest } = t;
+        return { ...rest, planDate: planDate || null };
+      }),
     }));
   const addTaskComment = (roomId, taskId, text) =>
     update(roomId, (r) => ({
@@ -1500,34 +1624,46 @@ export default function App() {
   // are composite "roomId::taskId" strings, or overId can be "col:<bucket>" when
   // dropping into an empty (or trailing) part of a column.
   const movePlannerTask = (activeId, overId) => {
-    const flat = flattenOpenTasks(rooms);
+    const flat = flattenOpenTasks(rooms, today);
     const activeItem = flat.find((x) => x.id === activeId);
     if (!activeItem) return;
 
     let bucket, destExcludingActive, insertAt;
     if (overId.startsWith("col:")) {
       bucket = overId.slice(4);
-      destExcludingActive = flat.filter((x) => x.bucket === bucket && x.id !== activeId);
+      destExcludingActive = sortBucketItems(flat.filter((x) => x.bucket === bucket && x.id !== activeId));
       insertAt = destExcludingActive.length; // append at end
     } else {
       const overItem = flat.find((x) => x.id === overId);
       if (!overItem) return;
       bucket = overItem.bucket;
-      destExcludingActive = flat.filter((x) => x.bucket === bucket && x.id !== activeId);
+      destExcludingActive = sortBucketItems(flat.filter((x) => x.bucket === bucket && x.id !== activeId));
       insertAt = destExcludingActive.findIndex((x) => x.id === overId);
       if (insertAt === -1) insertAt = destExcludingActive.length;
     }
 
     const newOrder = [...destExcludingActive];
     newOrder.splice(insertAt, 0, activeItem);
-    const planValue = bucket === "unscheduled" ? null : bucket;
+    // Only a move to a different column changes the date; reordering inside a
+    // column keeps it (so an overdue task doesn't silently get a new date).
+    let newDate = activeItem.planDate;
+    if (bucket !== activeItem.bucket) {
+      if (bucket === "unscheduled") newDate = null;
+      else if (bucket === "today") newDate = today;
+      else if (bucket === "tomorrow") newDate = addDays(today, 1);
+      else newDate = addDays(today, LATER_DEFAULT_DAYS);
+    }
 
     setRooms((rs) => rs.map((r) => ({
       ...r,
       tasks: r.tasks.map((t) => {
         const idx = newOrder.findIndex((x) => x.roomId === r.id && x.taskId === t.id);
         if (idx === -1) return t;
-        return { ...t, plan: planValue, planOrder: idx };
+        if (r.id === activeItem.roomId && t.id === activeItem.taskId) {
+          const { plan, ...rest } = t;
+          return { ...rest, planDate: newDate, planOrder: idx };
+        }
+        return { ...t, planOrder: idx };
       }),
     })));
   };
@@ -1717,6 +1853,7 @@ export default function App() {
         </main>
       ) : view === "home" ? (
         <Home
+          today={today}
           rooms={rooms}
           pct={pct}
           overall={overall()}
@@ -1813,6 +1950,7 @@ export default function App() {
         onClose={() => setDetail(null)}
         onRename={(taskId, text) => detailRenameTask(detailRoom.id, taskId, text)}
         onSetStatus={(taskId, statusValue) => setTaskStatus(detailRoom.id, taskId, statusValue)}
+        onSetPlanDate={(taskId, date) => setTaskPlanDate(detailRoom.id, taskId, date)}
         onAddSub={(taskId, text) => detailAddSub(detailRoom.id, taskId, text)}
         onToggleSub={(taskId, subId) => togglePlannerSubtask(detailRoom.id, taskId, subId)}
         onDeleteSub={(taskId, subId) => detailDeleteSub(detailRoom.id, taskId, subId)}
