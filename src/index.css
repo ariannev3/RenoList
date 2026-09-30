@@ -204,8 +204,10 @@ body { background: #FAF4E4; overflow-x: hidden; }
   .planner-grid { grid-template-columns:repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
-  .planner-grid { display:flex; overflow-x:auto; gap:12px; padding-bottom:6px; scroll-snap-type:x proximity; }
-  .planner-col { flex:0 0 82vw; scroll-snap-align:start; }
+  /* stack the planner columns instead of a sideways scroll that hides "Today" */
+  .planner-grid { display:flex; flex-direction:column; gap:12px; }
+  .planner-col { flex:none; min-height:0; }
+  .planner-col:not(.tray) { border:1px dashed var(--line); }  /* keeps empty drop targets visible */
 }
 
 /* settings page */
@@ -441,14 +443,57 @@ body { background: #FAF4E4; overflow-x: hidden; }
 
 
 @media (max-width: 980px) { .cols { grid-template-columns:1fr; } .stats { grid-template-columns:1fr; } }
+/* phone-only chrome, hidden on larger screens */
+.mobile-bar, .side-close, .nav-backdrop { display:none; }
+@keyframes reno-fade { from { opacity:0; } to { opacity:1; } }
+
 @media (max-width: 760px) {
   .reno { flex-direction:column; }
-  .side { width:100% !important; flex:none !important; position:static; height:auto; overflow-y:visible; max-width:none; }
+
+  /* top bar with the menu button */
+  .mobile-bar { display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:40;
+    min-height:56px; padding:env(safe-area-inset-top) 14px 0 6px; background:var(--sidebar); color:var(--side-ink); }
+  .reno .mobile-menu-btn { width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+    border-radius:var(--r-sm); color:var(--side-ink); }
+  .reno .mobile-menu-btn:hover { background:rgba(255,255,255,.08); }
+  .mobile-brand { padding:0; gap:9px; }
+  .mobile-brand .brand-mark { width:26px; height:26px; }
+  .mobile-brand .brand-name { font-size:17px; }
+  .mobile-bar-pct { margin-left:auto; font-size:12.5px; font-weight:700; padding:4px 10px; border-radius:var(--r-pill);
+    background:rgba(255,255,255,.1); font-variant-numeric:tabular-nums; }
+
+  /* the sidebar becomes a slide-in menu */
+  .side { position:fixed; top:0; left:0; bottom:0; z-index:60; width:min(86vw, 320px) !important; flex:none !important;
+    height:100vh; height:100dvh; min-width:0; max-width:none; overflow-y:auto;
+    padding-top:calc(22px + env(safe-area-inset-top)); visibility:hidden; transform:translateX(-102%);
+    transition:transform .26s var(--ease), visibility 0s linear .26s; }
+  .side.open { visibility:visible; transform:none; box-shadow:12px 0 40px rgba(0,0,0,.35);
+    transition:transform .26s var(--ease); }
+  .reno .side-close { display:flex; position:absolute; top:calc(16px + env(safe-area-inset-top)); right:12px;
+    width:40px; height:40px; align-items:center; justify-content:center; border-radius:var(--r-sm); color:var(--side-muted); }
+  .reno .side-close:hover { color:var(--side-ink); background:rgba(255,255,255,.08); }
+  .nav-backdrop { display:block; position:fixed; inset:0; z-index:55; background:rgba(20,17,12,.45);
+    animation:reno-fade .2s var(--ease); }
   .side-resizer { display:none; }
-  .main { padding:22px 18px 40px; }
+
+  .main { padding:20px 16px 40px; }
+
+  /* room stats: one compact row instead of three full-screen tiles */
+  .stats { grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:18px; }
+  .stat { padding:12px 12px 13px; border-radius:var(--r-md); }
+  .stat-ic, .stat-sub { display:none; }
+  .stat-lbl { font-size:11.5px; line-height:1.25; }
+  .stat-num { font-size:21px; margin-top:4px; }
+  .stat-num span { font-size:.7em !important; }
+  .stat { display:flex; flex-direction:column; }
+  .stat-num { margin-top:auto; padding-top:4px; }   /* numbers line up even when a label wraps */
+
+  /* give list text more room on narrow screens */
+  .col { padding:14px 10px 6px; }
+  .item { gap:10px; padding:10px 6px; }
   .title { font-size:26px; }
   .head-right { align-items:flex-start; }
-  .add-amt { flex-basis:74px; }
+  .add-amt { flex-basis:86px; padding-left:10px; padding-right:10px; }
   .amt-cell { flex-basis:70px; }
   .list-head .lh-amt { width:70px; margin-right:34px; }
 }

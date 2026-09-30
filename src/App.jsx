@@ -65,6 +65,7 @@ const TRANSLATIONS = {
     yourNameLbl: "Your name", yourNameSub: "Shown on comments you leave on tasks.",
     yourNamePh: "e.g. Alex", defaultCommenter: "You", subtasksLbl: "Subtasks",
     themeLbl: "Theme", themeAuto: "Auto", themeLight: "Light", themeDark: "Dark",
+    openMenu: "Open menu", closeMenu: "Close menu",
   },
   nl: {
     dashboard: "Dashboard", settings: "Instellingen", rooms: "Kamers", newRoom: "Nieuwe kamer",
@@ -98,6 +99,7 @@ const TRANSLATIONS = {
     yourNameLbl: "Jouw naam", yourNameSub: "Zichtbaar bij reacties die je op taken achterlaat.",
     yourNamePh: "bijv. Alex", defaultCommenter: "Jij", subtasksLbl: "Subtaken",
     themeLbl: "Thema", themeAuto: "Auto", themeLight: "Licht", themeDark: "Donker",
+    openMenu: "Menu openen", closeMenu: "Menu sluiten",
   },
 };
 
@@ -197,6 +199,11 @@ const Icon = {
   plus: (p) => (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  menu: (p) => (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" {...p}>
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
   x: (p) => (
@@ -441,6 +448,20 @@ function migratePlans(rooms, today) {
       needsPlanDate(t) ? { ...t, planDate: addDays(today, LEGACY_PLAN_OFFSET[t.plan]) } : t
     ),
   }));
+}
+
+// True while the given media query matches (e.g. the phone layout).
+function useMediaQuery(query) {
+  const get = () => typeof window !== "undefined" && window.matchMedia(query).matches;
+  const [matches, setMatches] = useState(get);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
 }
 
 // Keeps a "today" date key that updates when the day changes (checked every
@@ -1367,6 +1388,31 @@ export default function App() {
 
   const [roomsOpen, setRoomsOpen] = useState(true);
 
+  // Phone layout: the sidebar becomes a slide-in menu behind a top bar.
+  const isPhone = useMediaQuery("(max-width: 760px)");
+  const [navOpen, setNavOpen] = useState(false);
+  const sideRef = useRef(null);
+  const menuBtnRef = useRef(null);
+  const drawerOpen = isPhone && navOpen;
+  // close the menu whenever you navigate somewhere, or leave the phone layout
+  useEffect(() => { setNavOpen(false); }, [view, activeId, isPhone]);
+  useEffect(() => {
+    const side = sideRef.current;
+    if (!side) return;
+    // while the menu is closed on a phone, keep its buttons out of tab order
+    if (isPhone && !navOpen) side.setAttribute("inert", ""); else side.removeAttribute("inert");
+    if (!drawerOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => { if (e.key === "Escape") setNavOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      if (menuBtnRef.current) menuBtnRef.current.focus();
+    };
+  }, [isPhone, navOpen, drawerOpen]);
+
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try {
       const v = parseInt(localStorage.getItem(SIDEBAR_KEY), 10);
@@ -1719,7 +1765,35 @@ export default function App() {
     <>
     <div className="reno">
       {/* ---------------- sidebar ---------------- */}
-      <aside className="side" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
+      <header className="mobile-bar">
+        <button
+          ref={menuBtnRef}
+          type="button"
+          className="mobile-menu-btn"
+          aria-label={tr.openMenu}
+          aria-expanded={drawerOpen}
+          aria-controls="reno-nav"
+          onClick={() => setNavOpen(true)}
+        >
+          <Icon.menu />
+        </button>
+        <div className="brand mobile-brand">
+          <div className="brand-mark"><Icon.brandMark /></div>
+          <span className="brand-name">RenoList</span>
+        </div>
+        <span className="mobile-bar-pct">{overall()}%</span>
+      </header>
+      {drawerOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
+
+      <aside
+        id="reno-nav"
+        ref={sideRef}
+        className={"side" + (drawerOpen ? " open" : "")}
+        style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}
+      >
+        <button type="button" className="side-close" aria-label={tr.closeMenu} onClick={() => setNavOpen(false)}>
+          <Icon.x />
+        </button>
         <div className="brand">
           <div className="brand-mark"><Icon.brandMark /></div>
           <span className="brand-name">RenoList</span>
@@ -1727,7 +1801,7 @@ export default function App() {
 
         <button
           className={"home-btn" + (view === "home" ? " active" : "")}
-          onClick={() => setView("home")}
+          onClick={() => { setView("home"); setNavOpen(false); }}
         >
           <Icon.home /> {tr.dashboard}
         </button>
@@ -1754,7 +1828,7 @@ export default function App() {
                   active={view === "room" && r.id === activeId}
                   editing={editId === r.id}
                   editName={editName}
-                  onSelect={() => { setActiveId(r.id); setView("room"); }}
+                  onSelect={() => { setActiveId(r.id); setView("room"); setNavOpen(false); }}
                   onStartEdit={() => { setEditId(r.id); setEditName(r.name); }}
                   onEditChange={(v) => setEditName(v)}
                   onEditCommit={renameRoom}
@@ -1799,7 +1873,7 @@ export default function App() {
 
           <button
             className={"settings-btn" + (view === "settings" ? " active" : "")}
-            onClick={() => setView("settings")}
+            onClick={() => { setView("settings"); setNavOpen(false); }}
           >
             <Icon.settings /> {tr.settings}
           </button>
