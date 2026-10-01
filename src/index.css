@@ -728,6 +728,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
   gap:4px; min-width:0; transition:background .12s; }
 .cal-day:first-child { border-left:none; }
 .cal-day.out { background:rgba(38,35,29,.03); }
+.cal-day.weekend:not(.out) { background:rgba(38,35,29,.05); }
 .cal-day.out .cal-day-num { opacity:.45; }
 .cal-day.over { background:rgba(38,35,29,.06); box-shadow:inset 0 0 0 2px rgba(38,35,29,.18); }
 .cal-day-num { align-self:center; font-size:12.5px; font-weight:700; width:26px; height:26px; display:flex;
@@ -789,6 +790,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 /* dark */
 :root[data-theme="dark"] .reno .cal-chip { background:rgba(255,255,255,.07); color:var(--ink); }
 :root[data-theme="dark"] .cal-day.out { background:rgba(255,255,255,.02); }
+:root[data-theme="dark"] .cal-day.weekend:not(.out) { background:rgba(255,255,255,.04); }
 :root[data-theme="dark"] .cal-day.over, :root[data-theme="dark"] .mini-day.over { background:rgba(255,255,255,.07); box-shadow:inset 0 0 0 2px rgba(255,255,255,.2); }
 :root[data-theme="dark"] .reno .cal-today-btn { border-color:rgba(255,255,255,.22); }
 :root[data-theme="dark"] .cal-agenda-today { background:rgba(255,255,255,.08); }
