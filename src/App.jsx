@@ -864,10 +864,13 @@ function CalDay({ dayKey, inMonth, today, items, tr, onOpen }) {
   const MAX = 3;
   const shown = expanded || items.length <= MAX ? items : items.slice(0, MAX - 1);
   const hidden = items.length - shown.length;
+  const wd = new Date(dayKey + "T00:00").getDay();
+  const isWeekend = wd === 0 || wd === 6;
   return (
     <div
       ref={setNodeRef}
-      className={"cal-day" + (inMonth ? "" : " out") + (dayKey === today ? " today" : "") +
+      className={"cal-day" + (inMonth ? "" : " out") + (isWeekend ? " weekend" : "") +
+        (dayKey === today ? " today" : "") +
         (dayKey < today ? " past" : "") + (isOver ? " over" : "")}
     >
       <span className="cal-day-num">{dayNum(dayKey)}</span>
