@@ -607,3 +607,26 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .room-summary-bar { background:rgba(255,255,255,.12); }
 /* checked boxes keep their room colour in dark mode (the neutral dark box rule above was overriding it) */
 :root[data-theme="dark"] .reno .box.on { background:var(--dot); border-color:transparent; box-shadow:0 0 0 3px rgba(255,255,255,.08); }
+
+/* ============================================================
+   MATERIALS LIST ALIGNMENT
+   The drag handle used to sit in front of the checkbox, taking
+   ~38px even while invisible, so materials were indented further
+   than tasks. Now: in the left margin on pointer devices (appears
+   on hover), and at the far right on touch screens (where phones
+   normally put reorder handles). The column headers line up with
+   the names and amounts below.
+   ============================================================ */
+.reno .item { position:relative; padding-left:16px; }   /* same inset as task cards */
+.list-head { padding-left:50px; }                 /* 16px row padding + 22px box + 12px gap */
+@media (hover: hover) {
+  .reno .item > .grip { position:absolute; left:-4px; top:50%; transform:translateY(-50%); width:20px; height:30px; }
+}
+@media (hover: none) {
+  .reno .item > .grip { order:10; margin-left:-6px; }
+  .list-head .lh-amt { margin-right:68px; }      /* delete + handle on the right */
+}
+@media (max-width: 760px) {
+  .reno .item { padding-left:16px; }
+  .list-head { padding-left:48px; }               /* 16px + 22px + 10px gap on phones */
+}
