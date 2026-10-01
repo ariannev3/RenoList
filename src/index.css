@@ -809,6 +809,17 @@ body { background: #FAF4E4; overflow-x: hidden; }
 /* Dashboard + Calendar sit together as one nav group */
 .home-btn + .home-btn { margin-top:-10px; }
 
+/* multi-day task bars (spanning the calendar week rows) */
+.cal-day-items { margin-top:calc(var(--bars-h, 0px) + 2px); }
+.cal-bar { position:absolute; z-index:2; display:flex; align-items:center; gap:4px; box-sizing:border-box;
+  padding:0 8px; border-radius:var(--r-sm); border-left:3px solid var(--c-dot); font-size:12px; font-weight:600; line-height:1;
+  background:var(--c-bg); color:var(--c-ink); overflow:hidden; white-space:nowrap; cursor:pointer; }
+.cal-bar-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cal-bar.cont-l { border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; padding-left:8px; }
+.cal-bar.cont-r { border-top-right-radius:0; border-bottom-right-radius:0; }
+.cal-bar.done { opacity:.6; text-decoration:line-through; }
+:root[data-theme="dark"] .cal-bar { background:rgba(255,255,255,.07); color:var(--ink); }
+.detail-plan-to { font-size:12.5px; font-weight:600; color:var(--muted); }
 /* fixed-appointment pin */
 .detail-pin { display:inline-flex; align-items:center; gap:7px; margin:0 0 20px; padding:8px 12px; min-height:40px; white-space:nowrap;
   border-radius:var(--r-md); background:var(--cream); color:var(--muted); font-size:13px; font-weight:600;
