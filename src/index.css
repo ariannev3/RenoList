@@ -817,7 +817,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 .detail-pin.on { background:var(--ink); color:var(--card); }
 .detail-pin svg { flex:0 0 auto; }
 .cal-chip-pin { flex:0 0 auto; margin-right:1px; opacity:.9; }
-=======
+
 /* ------------------------------------------------------------------
    Touch targets. On a mouse (fine pointer) every control keeps its
    compact size. On touch (coarse pointer) the HIT AREA grows to a
