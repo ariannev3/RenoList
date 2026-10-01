@@ -630,3 +630,15 @@ body { background: #FAF4E4; overflow-x: hidden; }
   .reno .item { padding-left:16px; }
   .list-head { padding-left:48px; }               /* 16px + 22px + 10px gap on phones */
 }
+
+/* "New room" card: a visible dashed placeholder slot in both themes
+   (it used to be near-invisible in light mode and a solid card in dark) */
+.reno .room-card.room-card-add { background:transparent; border:1.5px dashed rgba(38,35,29,.24); color:var(--muted); min-height:100px;
+  transition:background .15s, border-color .15s, color .15s; }
+.reno .room-card.room-card-add:hover,
+.reno .room-card.room-card-add:focus-visible { background:var(--card); border-color:rgba(38,35,29,.42); color:var(--ink); }
+:root[data-theme="dark"] .reno .room-card.room-card-add { background:transparent !important; color:var(--muted) !important;
+  border-color:rgba(255,255,255,.22); box-shadow:none; }
+:root[data-theme="dark"] .reno .room-card.room-card-add:hover,
+:root[data-theme="dark"] .reno .room-card.room-card-add:focus-visible { background:var(--card) !important; color:var(--ink) !important;
+  border-color:rgba(255,255,255,.38); }
