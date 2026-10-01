@@ -576,7 +576,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .room-card-bar { background:rgba(255,255,255,.12); }
 
 /* planner date (task detail) */
-.detail-plan { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 20px; }
+.detail-plan { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
 .detail-plan-lbl { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
 .detail-plan-row { display:flex; align-items:center; gap:6px; }
 .detail-plan-input { background:var(--cream); border:1px solid transparent; border-radius:var(--r-sm);
@@ -807,3 +807,12 @@ body { background: #FAF4E4; overflow-x: hidden; }
 @media (max-width: 760px) { .cal-tray { flex-direction:column; } .cal-tray-intro { flex:none; } }
 /* Dashboard + Calendar sit together as one nav group */
 .home-btn + .home-btn { margin-top:-10px; }
+
+/* fixed-appointment pin */
+.detail-pin { display:inline-flex; align-items:center; gap:7px; margin:0 0 20px; padding:8px 12px; min-height:40px; white-space:nowrap;
+  border-radius:var(--r-md); background:var(--cream); color:var(--muted); font-size:13px; font-weight:600;
+  border:1px solid transparent; transition:background .15s var(--ease), color .15s var(--ease); }
+.detail-pin:hover { color:var(--ink); }
+.detail-pin.on { background:var(--ink); color:var(--card); }
+.detail-pin svg { flex:0 0 auto; }
+.cal-chip-pin { flex:0 0 auto; margin-right:1px; opacity:.9; }
