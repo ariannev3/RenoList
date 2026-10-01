@@ -680,3 +680,31 @@ body { background: #FAF4E4; overflow-x: hidden; }
 @media (hover: none) {
   .reno .detail-sublist .subitem > .grip { order:10; }
 }
+
+/* ============================================================
+   TASK CARD LAYOUT
+   Wide cards (desktop room page): status pill + delete on the title row.
+   Narrow cards (phones, planner columns): pill keeps its own row above
+   the title so long titles aren't squeezed. Decided per card width via
+   a container query, not per screen size.
+   ============================================================ */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.task-card { container-type:inline-size; }
+.card-wide-only { display:none; }
+.card-title-status { flex:0 0 auto; align-items:center; }
+@container (min-width: 400px) {
+  .card-narrow-only { display:none !important; }
+  .card-wide-only { display:inline-flex; }
+  .reno .del.card-wide-only { display:flex; align-items:center; justify-content:center; margin-left:-2px; }
+}
+
+/* one-line footer: ☰ 2/3 ━━━━━ 💬 1 (lined up with the title text) */
+.task-foot { display:flex; align-items:center; gap:10px; margin-top:10px; padding-left:32px;
+  font-size:12.5px; font-weight:700; color:var(--muted); }
+.task-foot-subs { display:inline-flex; align-items:center; gap:5px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.reno .task-foot-bar { flex:1; margin:0; height:6px; min-width:40px; }
+.task-foot-comments { display:inline-flex; align-items:center; gap:5px; margin-left:auto; font-variant-numeric:tabular-nums; }
+.task-foot-subs svg, .task-foot-comments svg { flex:0 0 auto; }
+.planner-card .task-foot { margin-top:0; }
+:root[data-theme="dark"] .reno .task-foot-bar { background:rgba(255,255,255,.1); }
+.task-foot-comments:only-child { margin-left:0; }   /* comments only: sit under the title, not alone on the far right */

@@ -385,41 +385,32 @@ const dragStyle = (transform, transition, isDragging) => ({
 // Shared by task cards in a room's list and in the planner: a subtask-count
 // pill, a comment-count pill, and a completion bar. Always shown (even at 0)
 // so every card has the same shape and is quick to scan.
-// Subtask / comment counts — only the ones that aren't zero, so cards for
-// simple tasks stay one line tall.
-function TaskCardMeta({ subsTotal, commentsTotal }) {
+// One-line card footer: subtask icon + "2/3" + progress bar, and the comment
+// count on the right. Each part only appears when there's something to show.
+function TaskCardFooter({ subsDone, subsTotal, commentsTotal, color, tr }) {
   if (!subsTotal && !commentsTotal) return null;
+  const pct = subsTotal ? Math.round((subsDone / subsTotal) * 100) : 0;
   return (
-    <div className="task-meta">
+    <div className="task-foot">
       {subsTotal > 0 && (
-        <span className="meta-pill">
-          <Icon.tasks width={16} height={16} aria-hidden="true" />
-          {subsTotal}
-        </span>
+        <>
+          <span className="task-foot-subs" title={tr.subtasksComplete}>
+            <Icon.tasks width={15} height={15} aria-hidden="true" />
+            <span className="sr-only">{tr.subtasksComplete}: </span>
+            {subsDone}/{subsTotal}
+          </span>
+          <div className="bar task-card-bar task-foot-bar" aria-hidden="true">
+            <i style={{ width: pct + "%", background: color.dot }} />
+          </div>
+        </>
       )}
       {commentsTotal > 0 && (
-        <span className="meta-pill">
-          <Icon.comment width={16} height={16} aria-hidden="true" />
+        <span className="task-foot-comments" title={tr.commentsLbl}>
+          <Icon.comment width={15} height={15} aria-hidden="true" />
+          <span className="sr-only">{tr.commentsLbl}: </span>
           {commentsTotal}
         </span>
       )}
-    </div>
-  );
-}
-function TaskCardProgress({ subsDone, subsTotal, color, tr }) {
-  // Only meaningful when the task has subtasks; otherwise the checkbox and
-  // status already say everything.
-  if (!subsTotal) return null;
-  const pct = Math.round((subsDone / subsTotal) * 100);
-  return (
-    <div className="task-card-progress">
-      <div className="task-card-progress-top">
-        <span>{tr.subtasksComplete}</span>
-        <span className="task-card-progress-num">{subsDone}/{subsTotal}</span>
-      </div>
-      <div className="bar task-card-bar">
-        <i style={{ width: pct + "%", background: color.dot }} />
-      </div>
     </div>
   );
 }
@@ -588,8 +579,7 @@ function PlannerCard({ item, tr, onToggle, onOpenDetail }) {
           </span>
           <PlanDateBadge item={item} tr={tr} />
         </div>
-        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} color={item.color} tr={tr} />
-        <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
+        <TaskCardFooter subsDone={subsDone} subsTotal={subs.length} commentsTotal={(item.comments || []).length} color={item.color} tr={tr} />
       </div>
     </div>
   );
@@ -617,8 +607,7 @@ function PlannerCardPreview({ item, tr }) {
           </span>
           <PlanDateBadge item={item} tr={tr} />
         </div>
-        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} color={item.color} tr={tr} />
-        <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
+        <TaskCardFooter subsDone={subsDone} subsTotal={subs.length} commentsTotal={(item.comments || []).length} color={item.color} tr={tr} />
       </div>
     </div>
   );
@@ -802,7 +791,10 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
         {...attributes}
         {...listeners}
       >
-        <div className="task-card-head">
+        {/* Status + delete sit on the title row when the card is wide enough,
+            and on their own row above the title on narrow cards (phones), so
+            long titles don't get squeezed. CSS container queries pick one. */}
+        <div className="task-card-head card-narrow-only">
           <StatusPill statusKey={statusKey} tr={tr} />
           <button className="del" onClick={() => onDelete(task.id)} aria-label="Delete">
             <Icon.x />
@@ -813,9 +805,12 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
           <button type="button" className="item-text task-title-btn task-title-grow" onClick={() => onOpenDetail(task.id)}>
             {task.text}
           </button>
+          <span className="card-wide-only card-title-status"><StatusPill statusKey={statusKey} tr={tr} /></span>
+          <button className="del card-wide-only" onClick={() => onDelete(task.id)} aria-label="Delete">
+            <Icon.x />
+          </button>
         </div>
-        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} color={color} tr={tr} />
-        <TaskCardMeta subsTotal={subs.length} commentsTotal={commentsTotal} />
+        <TaskCardFooter subsDone={subsDone} subsTotal={subs.length} commentsTotal={commentsTotal} color={color} tr={tr} />
       </div>
     </li>
   );
