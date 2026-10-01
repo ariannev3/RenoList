@@ -512,8 +512,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
 
-/* ============================================================
-   DARK MODE
+/* =====================================================   DARK MODE
    Layered on top; light mode above is unchanged. The effective
    theme is set by JS as data-theme on <html> (auto resolves to
    the OS preference), so both the app and the modal .reno roots
@@ -576,7 +575,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .room-card-bar { background:rgba(255,255,255,.12); }
 
 /* planner date (task detail) */
-.detail-plan { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 20px; }
+.detail-plan { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
 .detail-plan-lbl { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
 .detail-plan-row { display:flex; align-items:center; gap:6px; }
 .detail-plan-input { background:var(--cream); border:1px solid transparent; border-radius:var(--r-sm);
@@ -728,6 +727,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
   gap:4px; min-width:0; transition:background .12s; }
 .cal-day:first-child { border-left:none; }
 .cal-day.out { background:rgba(38,35,29,.03); }
+.cal-day.weekend:not(.out) { background:rgba(38,35,29,.05); }
 .cal-day.out .cal-day-num { opacity:.45; }
 .cal-day.over { background:rgba(38,35,29,.06); box-shadow:inset 0 0 0 2px rgba(38,35,29,.18); }
 .cal-day-num { align-self:center; font-size:12.5px; font-weight:700; width:26px; height:26px; display:flex;
@@ -789,12 +789,13 @@ body { background: #FAF4E4; overflow-x: hidden; }
 /* dark */
 :root[data-theme="dark"] .reno .cal-chip { background:rgba(255,255,255,.07); color:var(--ink); }
 :root[data-theme="dark"] .cal-day.out { background:rgba(255,255,255,.02); }
+:root[data-theme="dark"] .cal-day.weekend:not(.out) { background:rgba(255,255,255,.04); }
 :root[data-theme="dark"] .cal-day.over, :root[data-theme="dark"] .mini-day.over { background:rgba(255,255,255,.07); box-shadow:inset 0 0 0 2px rgba(255,255,255,.2); }
 :root[data-theme="dark"] .reno .cal-today-btn { border-color:rgba(255,255,255,.22); }
 :root[data-theme="dark"] .cal-agenda-today { background:rgba(255,255,255,.08); }
 
 /* layout v2: unscheduled tray as a bar above the month, so days get the full width */
-.cal-layout { display:flex; flex-direction:column; gap:14px; }
+.cal-layout { display:flex; flex-direction:column; gap:14px; align-items:stretch; }
 .cal-tray { position:static; max-height:none; overflow:visible; display:flex; align-items:flex-start; gap:14px; padding:10px 12px; }
 .cal-tray-intro { flex:0 0 150px; }
 .cal-tray-intro .cal-tray-hint { margin:2px 0 0; }
@@ -819,3 +820,31 @@ body { background: #FAF4E4; overflow-x: hidden; }
 .cal-bar.done { opacity:.6; text-decoration:line-through; }
 :root[data-theme="dark"] .cal-bar { background:rgba(255,255,255,.07); color:var(--ink); }
 .detail-plan-to { font-size:12.5px; font-weight:600; color:var(--muted); }
+/* fixed-appointment pin */
+.detail-pin { display:inline-flex; align-items:center; gap:7px; margin:0 0 20px; padding:8px 12px; min-height:40px; white-space:nowrap;
+  border-radius:var(--r-md); background:var(--cream); color:var(--muted); font-size:13px; font-weight:600;
+  border:1px solid transparent; transition:background .15s var(--ease), color .15s var(--ease); }
+.detail-pin:hover { color:var(--ink); }
+.detail-pin.on { background:var(--ink); color:var(--card); }
+.detail-pin svg { flex:0 0 auto; }
+.cal-chip-pin { flex:0 0 auto; margin-right:1px; opacity:.9; }
+
+/* ------------------------------------------------------------------
+   Touch targets. On a mouse (fine pointer) every control keeps its
+   compact size. On touch (coarse pointer) the HIT AREA grows to a
+   comfortable size without moving anything visually — WCAG 2.5.8 asks
+   for 24px minimum; these clear it (the small colour swatch reaches a
+   32px tap area that still sits inside the row gap, so it never steals
+   a tap from the room name; icon buttons reach ~40px).
+   ------------------------------------------------------------------ */
+@media (hover: none) {
+  .color-trigger { position:relative; }
+  .color-trigger::after { content:""; position:absolute; top:50%; left:50%;
+    width:32px; height:32px; transform:translate(-50%,-50%); border-radius:50%; }
+  .color-trigger.lg { width:44px; height:44px; flex:0 0 44px; }
+  .color-trigger.lg::after { display:none; }
+  .room-tools { gap:4px; }
+  .room-tools button { min-width:40px; min-height:40px; align-items:center; justify-content:center; }
+  .del { width:40px; height:40px; flex:0 0 40px; }
+  .detail-close, .comment-send { width:40px; height:40px; }
+}
