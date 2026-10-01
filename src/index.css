@@ -229,7 +229,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 .lang-opt { flex:1; padding:10px 14px; border-radius:var(--r-md); background:var(--cream);
   border:1px solid transparent; font-size:14px; font-weight:600; color:var(--muted); transition:.12s; }
 .lang-opt:hover { color:var(--ink); }
-.lang-opt.active { background:var(--ink); color:#fff; }
+.lang-opt.active { background:var(--ink); color:var(--bg, #FAF4E4); }
 .settings-card .sync { align-self:flex-start; }
 .settings-input { width:100%; background:var(--cream); border:1px solid transparent; border-radius:var(--r-md);
   padding:11px 13px; font-size:14px; color:var(--ink); outline:none; font-family:inherit;
@@ -552,8 +552,8 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .edit-input { background:#2b2620; border-color:rgba(255,255,255,.2); color:var(--ink); }
 
 /* buttons that used the ink colour as a fill (would be light-on-light in dark) */
-:root[data-theme="dark"] .lang-opt.active { background:#B79CEB; color:#15120D; }
-:root[data-theme="dark"] .blank button { background:#B79CEB; color:#15120D; }
+:root[data-theme="dark"] .lang-opt.active { background:var(--ink); color:var(--bg); }
+:root[data-theme="dark"] .blank button { background:var(--ink); color:var(--bg); }
 :root[data-theme="dark"] .del:hover { background:rgba(255,255,255,.08); color:#E7715E; }
 
 /* overlays + shadows softened for a dark canvas */
@@ -642,3 +642,41 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .reno .room-card.room-card-add:hover,
 :root[data-theme="dark"] .reno .room-card.room-card-add:focus-visible { background:var(--card) !important; color:var(--ink) !important;
   border-color:rgba(255,255,255,.38); }
+
+/* ============================================================
+   COLOUR ROLES + ADD BUTTONS
+   - room colour  = which room something belongs to
+   - status       = neutral pill + small coloured dot (never looks like a room)
+   - brand gradient = whole project only; ink = app-wide buttons
+   - every "type + add" row uses one filled room-colour button
+   ============================================================ */
+.reno .status-pill { display:inline-flex; align-items:center; gap:6px; background:rgba(38,35,29,.06);
+  color:var(--ink); border:none; font-size:11.5px; font-weight:700; padding:3px 10px 3px 8px; }
+.status-dot { flex:0 0 auto; width:7px; height:7px; border-radius:50%; }
+.status-dot.hollow { background:transparent; box-shadow:inset 0 0 0 1.5px var(--muted); }
+:root[data-theme="dark"] .reno .status-pill { background:rgba(255,255,255,.08); }
+
+.reno .status-opt { display:flex; align-items:center; justify-content:center; gap:6px; background:transparent;
+  color:var(--muted); border:1px solid transparent; }
+.reno .status-opt:hover { color:var(--ink); filter:none; }
+.reno .status-opt.active { background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(38,35,29,.14); }
+:root[data-theme="dark"] .reno .status-opt.active { background:rgba(255,255,255,.1); box-shadow:none; }
+
+/* subtask add row (task window): same filled button as tasks/materials */
+.reno .detail-sub-add-btn { width:36px; height:36px; border-radius:var(--r-sm); transition:filter .15s; }
+.reno .detail-sub-add-btn:hover { filter:brightness(1.05); }
+.reno .detail-sub-add .sub-input { min-height:36px; }
+.reno .comment-send { transition:filter .15s; }
+.reno .comment-send:hover { filter:brightness(1.05); }
+
+/* subtasks in the task window line up with the "Add a subtask" field:
+   no tree line here (there's no parent row in the window), and the drag
+   handle moves out of the way like in the materials list */
+.reno .detail-sublist { margin:0 0 6px; padding:0; border-left:none; }
+.reno .detail-sublist .subitem { position:relative; padding-left:12px; }
+@media (hover: hover) {
+  .reno .detail-sublist .subitem > .grip { position:absolute; left:-10px; top:50%; transform:translateY(-50%); width:18px; }
+}
+@media (hover: none) {
+  .reno .detail-sublist .subitem > .grip { order:10; }
+}

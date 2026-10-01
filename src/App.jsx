@@ -266,14 +266,21 @@ const Icon = {
 // A task is complete when its own checkbox is ticked (you sign it off yourself).
 const taskComplete = (t) => !!t.done;
 
-// Reuses the app's existing pastel palette (sky, yellow, sage) so status
-// colours stay consistent with everything else rather than introducing new hues.
+// Colour roles: the ROOM colour says which room something belongs to, so
+// status must not look like a room. Status is shown as a neutral pill with a
+// small coloured dot ("mark") in clear status hues; "To do" is a hollow ring.
 const STATUS_COLORS = {
-  todo: { chip: "#E7DEFA", dot: "#B79CEB", ink: "#4A3A72" },
-  in_progress: { chip: "#DEEAFB", dot: "#89B4EF", ink: "#2F4E7C" },
-  on_hold: { chip: "#FBEFC6", dot: "#EFC85F", ink: "#7A5B12" },
-  done: { chip: "#E1EEDB", dot: "#94C285", ink: "#3C5E30" },
+  todo: { mark: null },
+  in_progress: { mark: "#4C8DE0" },
+  on_hold: { mark: "#E0A030" },
+  done: { mark: "#4FA06A" },
 };
+function StatusDot({ statusKey }) {
+  const mark = STATUS_COLORS[statusKey].mark;
+  return (
+    <span className={"status-dot" + (mark ? "" : " hollow")} style={mark ? { background: mark } : undefined} aria-hidden="true" />
+  );
+}
 // A task only counts as "in progress" once it's explicitly been set that way;
 // otherwise it's still "to do" — not started, not paused, not finished.
 const taskStatusKey = (t) => {
@@ -283,10 +290,10 @@ const taskStatusKey = (t) => {
 };
 
 function StatusPill({ statusKey, tr }) {
-  const c = STATUS_COLORS[statusKey];
   const labels = { todo: tr.statusTodo, in_progress: tr.statusInProgress, on_hold: tr.statusOnHold, done: tr.statusDone };
   return (
-    <span className="status-pill" style={{ background: c.chip, color: c.ink, borderColor: c.dot }}>
+    <span className="status-pill">
+      <StatusDot statusKey={statusKey} />
       {labels[statusKey]}
     </span>
   );
@@ -1224,18 +1231,16 @@ function TaskDetailModal({
               ["on_hold", tr.statusOnHold],
               ["done", tr.statusDone],
             ].map(([key, label]) => {
-              const c = STATUS_COLORS[key];
               const isActive = displayStatus === key;
               return (
                 <button
                   key={key}
                   type="button"
                   className={"status-opt" + (isActive ? " active" : "")}
-                  style={isActive
-                    ? { background: c.chip, color: c.ink, borderColor: c.dot }
-                    : { background: "#fff", color: "var(--muted)", borderColor: "transparent" }}
+                  aria-pressed={isActive}
                   onClick={() => onSetStatus(task.id, key)}
                 >
+                  <StatusDot statusKey={key} />
                   {label}
                 </button>
               );
@@ -1292,7 +1297,6 @@ function TaskDetailModal({
               </DragList>
             )}
             <div className="sub-add detail-sub-add">
-              <span className="box sub" aria-hidden="true" />
               <input
                 className="sub-input"
                 value={subText}
@@ -1300,7 +1304,7 @@ function TaskDetailModal({
                 onKeyDown={(e) => e.key === "Enter" && submitSub()}
                 placeholder={tr.addSubtaskPh}
               />
-              <button className="detail-sub-add-btn" onClick={submitSub} aria-label="Add subtask">
+              <button className="detail-sub-add-btn" style={{ background: color.dot, color: color.ink }} onClick={submitSub} aria-label="Add subtask">
                 <Icon.plus />
               </button>
             </div>
