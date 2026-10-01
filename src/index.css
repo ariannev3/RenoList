@@ -807,3 +807,23 @@ body { background: #FAF4E4; overflow-x: hidden; }
 @media (max-width: 760px) { .cal-tray { flex-direction:column; } .cal-tray-intro { flex:none; } }
 /* Dashboard + Calendar sit together as one nav group */
 .home-btn + .home-btn { margin-top:-10px; }
+
+/* ------------------------------------------------------------------
+   Touch targets. On a mouse (fine pointer) every control keeps its
+   compact size. On touch (coarse pointer) the HIT AREA grows to a
+   comfortable size without moving anything visually — WCAG 2.5.8 asks
+   for 24px minimum; these clear it (the small colour swatch reaches a
+   32px tap area that still sits inside the row gap, so it never steals
+   a tap from the room name; icon buttons reach ~40px).
+   ------------------------------------------------------------------ */
+@media (hover: none) {
+  .color-trigger { position:relative; }
+  .color-trigger::after { content:""; position:absolute; top:50%; left:50%;
+    width:32px; height:32px; transform:translate(-50%,-50%); border-radius:50%; }
+  .color-trigger.lg { width:44px; height:44px; flex:0 0 44px; }
+  .color-trigger.lg::after { display:none; }
+  .room-tools { gap:4px; }
+  .room-tools button { min-width:40px; min-height:40px; align-items:center; justify-content:center; }
+  .del { width:40px; height:40px; flex:0 0 40px; }
+  .detail-close, .comment-send { width:40px; height:40px; }
+}
