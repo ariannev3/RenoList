@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase, isConfigured } from "./supabaseClient";
 import {
   DndContext, DragOverlay, closestCenter, pointerWithin, rectIntersection,
-  MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable,
+  MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, useDroppable, useDraggable,
 } from "@dnd-kit/core";
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable, sortableKeyboardCoordinates,
@@ -69,6 +69,9 @@ const TRANSLATIONS = {
     yourNamePh: "e.g. Alex", defaultCommenter: "You", subtasksLbl: "Subtasks",
     themeLbl: "Theme", themeAuto: "Auto", themeLight: "Light", themeDark: "Dark",
     themeSub: "Auto follows the light/dark setting of this device.",
+    calendar: "Calendar", calMore: (n) => `+${n} more`, calTrayHint: "Drag a task onto a day.",
+    calPhoneHint: "Tap a task to see it or change its date.", calEmpty: "Nothing planned this month.",
+    upcoming: "Upcoming", openCalendar: "Open calendar", prevMonth: "Previous month", nextMonth: "Next month",
     openMenu: "Open menu", closeMenu: "Close menu",
   },
   nl: {
@@ -107,6 +110,9 @@ const TRANSLATIONS = {
     yourNamePh: "bijv. Alex", defaultCommenter: "Jij", subtasksLbl: "Subtaken",
     themeLbl: "Thema", themeAuto: "Auto", themeLight: "Licht", themeDark: "Donker",
     themeSub: "Auto volgt de licht/donker-instelling van dit apparaat.",
+    calendar: "Agenda", calMore: (n) => `+${n} meer`, calTrayHint: "Sleep een taak naar een dag.",
+    calPhoneHint: "Tik op een taak om hem te bekijken of de datum te wijzigen.", calEmpty: "Niets gepland deze maand.",
+    upcoming: "Binnenkort", openCalendar: "Open agenda", prevMonth: "Vorige maand", nextMonth: "Volgende maand",
     openMenu: "Menu openen", closeMenu: "Menu sluiten",
   },
 };
@@ -207,6 +213,22 @@ const Icon = {
   plus: (p) => (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" {...p}>
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  calendar: (p) => (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" {...p}>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  ),
+  chevL: (p) => (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" {...p}>
+      <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  chevR: (p) => (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" {...p}>
+      <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   menu: (p) => (
@@ -637,7 +659,7 @@ function PlannerRoomGroup({ room, items, tr, expanded, onToggleExpand, onToggleT
   );
 }
 
-function Planner({ rooms, today, tr, onToggleTask, onOpenDetail, onMove }) {
+function Planner({ rooms, today, tr, onToggleTask, onOpenDetail, onMove, onOpenCalendar }) {
   const flat = flattenOpenTasks(rooms, today);
   const byBucket = {};
   PLAN_BUCKETS.forEach((b) => {
@@ -736,6 +758,13 @@ function Planner({ rooms, today, tr, onToggleTask, onOpenDetail, onMove }) {
                   </SortableContext>
                 ) : (
                   <SortableContext items={byBucket[bucket].map((x) => x.id)} strategy={verticalListSortingStrategy}>
+                    {bucket === "later" ? (
+                      <div className="planner-col-body">
+                        <MiniCalendar rooms={rooms} today={today} tr={tr} laterItems={byBucket.later}
+                          onOpenDetail={onOpenDetail} onOpenCalendar={onOpenCalendar} />
+                        <PlannerDropZone bucket={bucket} />
+                      </div>
+                    ) : (
                     <div className="planner-col-body">
                       {byBucket[bucket].length === 0 && (
                         <p className="planner-empty">{tr.plannerEmptyBucket}</p>
@@ -745,6 +774,7 @@ function Planner({ rooms, today, tr, onToggleTask, onOpenDetail, onMove }) {
                       ))}
                       <PlannerDropZone bucket={bucket} />
                     </div>
+                    )}
                   </SortableContext>
                 )}
               </div>
@@ -756,6 +786,272 @@ function Planner({ rooms, today, tr, onToggleTask, onOpenDetail, onMove }) {
         </DragOverlay>
       </DndContext>
     </section>
+  );
+}
+
+
+/* ------------------------------ calendar ----------------------------- */
+// Weeks (Monday–Sunday) covering a month, as arrays of "YYYY-MM-DD" keys.
+function monthWeeks(year, month) {
+  const offset = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+  const weeks = [];
+  for (let w = 0; w < 6; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) week.push(dateKey(new Date(year, month, 1 - offset + w * 7 + d)));
+    weeks.push(week);
+    const next = new Date(year, month, 1 - offset + (w + 1) * 7);
+    if (w >= 3 && (next.getMonth() !== month)) break;
+  }
+  return weeks;
+}
+const ymOf = (key) => ({ y: +key.slice(0, 4), m: +key.slice(5, 7) - 1 });
+const shiftYm = ({ y, m }, n) => { const d = new Date(y, m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; };
+const dayNum = (key) => +key.slice(8, 10);
+
+// Every task that has a date (open and done), tagged with its room.
+function datedTasks(rooms) {
+  const out = [];
+  rooms.forEach((r, ri) => {
+    const color = colorAt(r.ci ?? ri);
+    (r.tasks || []).forEach((t) => {
+      if (!t.planDate) return;
+      out.push({ id: `${r.id}::${t.id}`, roomId: r.id, taskId: t.id, roomName: r.name, color,
+        text: t.text, planDate: t.planDate, done: taskComplete(t), order: t.planOrder ?? 0 });
+    });
+  });
+  return out;
+}
+const groupByDay = (items) => {
+  const by = {};
+  items.forEach((x) => { (by[x.planDate] = by[x.planDate] || []).push(x); });
+  Object.values(by).forEach((l) => l.sort((a, b) => (a.done - b.done) || (a.order - b.order)));
+  return by;
+};
+const chipVars = (color) => ({ "--c-bg": color.chip, "--c-dot": color.dot, "--c-ink": color.ink });
+
+// A one-line task chip in the room colour, Google-Calendar style. Click opens
+// the full task window; drag moves it to another day.
+function CalChip({ item, today, onOpen, showRoom }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: "cal:" + item.id, data: { item } });
+  const overdue = !item.done && item.planDate && item.planDate < today;
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      {...attributes}
+      {...listeners}
+      className={"cal-chip" + (item.done ? " done" : "") + (overdue ? " overdue" : "") + (isDragging ? " dragging" : "")}
+      style={chipVars(item.color)}
+      title={`${item.text} · ${item.roomName}`}
+      onClick={() => onOpen(item.roomId, item.taskId)}
+    >
+      <span className="cal-chip-text">{item.text}</span>
+      {showRoom && <span className="cal-chip-room">{item.roomName}</span>}
+    </button>
+  );
+}
+
+function CalDay({ dayKey, inMonth, today, items, tr, onOpen }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "day:" + dayKey });
+  const [expanded, setExpanded] = useState(false);
+  const MAX = 3;
+  const shown = expanded || items.length <= MAX ? items : items.slice(0, MAX - 1);
+  const hidden = items.length - shown.length;
+  return (
+    <div
+      ref={setNodeRef}
+      className={"cal-day" + (inMonth ? "" : " out") + (dayKey === today ? " today" : "") +
+        (dayKey < today ? " past" : "") + (isOver ? " over" : "")}
+    >
+      <span className="cal-day-num">{dayNum(dayKey)}</span>
+      <div className="cal-day-items">
+        {shown.map((it) => <CalChip key={it.id} item={it} today={today} onOpen={onOpen} />)}
+        {hidden > 0 && (
+          <button type="button" className="cal-more" onClick={() => setExpanded(true)}>{tr.calMore(hidden)}</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CalTray({ items, today, tr, onOpen }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "cal-tray" });
+  return (
+    <aside ref={setNodeRef} className={"cal-tray" + (isOver ? " over" : "")}>
+      <div className="cal-tray-intro">
+        <div className="cal-tray-head">{tr.bucketUnscheduled} <span className="planner-count">{items.length}</span></div>
+        <p className="cal-tray-hint">{tr.calTrayHint}</p>
+      </div>
+      <div className="cal-tray-list">
+        {items.map((it) => <CalChip key={it.id} item={it} today={today} onOpen={onOpen} showRoom />)}
+        {items.length === 0 && <p className="planner-empty">{tr.plannerEmptyPool}</p>}
+      </div>
+    </aside>
+  );
+}
+
+function CalendarView({ rooms, today, tr, isPhone, onOpenDetail, onSetDate }) {
+  const [ym, setYm] = useState(() => ymOf(today));
+  const weeks = monthWeeks(ym.y, ym.m);
+  const byDay = groupByDay(datedTasks(rooms));
+  const unscheduled = flattenOpenTasks(rooms, today).filter((x) => !x.planDate);
+  const monthLabel = new Date(ym.y, ym.m, 1).toLocaleDateString(tr.locale, { month: "long", year: "numeric" });
+  const weekdayLabels = weeks[0].map((k) => {
+    const [y, m, d] = k.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(tr.locale, { weekday: "short" });
+  });
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } })
+  );
+  const [dragItem, setDragItem] = useState(null);
+  const onDragStart = ({ active }) => setDragItem(active.data.current.item);
+  const onDragEnd = ({ active, over }) => {
+    setDragItem(null);
+    if (!over) return;
+    const it = active.data.current.item;
+    if (over.id === "cal-tray") onSetDate(it.roomId, it.taskId, null);
+    else if (String(over.id).startsWith("day:")) onSetDate(it.roomId, it.taskId, String(over.id).slice(4));
+  };
+
+  const header = (
+    <div className="cal-head">
+      <h1 className="title">{tr.calendar}</h1>
+      <div className="cal-nav">
+        <button type="button" className="cal-today-btn" onClick={() => setYm(ymOf(today))}>{tr.bucketToday}</button>
+        <button type="button" className="cal-arrow" aria-label={tr.prevMonth} onClick={() => setYm((v) => shiftYm(v, -1))}><Icon.chevL /></button>
+        <button type="button" className="cal-arrow" aria-label={tr.nextMonth} onClick={() => setYm((v) => shiftYm(v, 1))}><Icon.chevR /></button>
+        <span className="cal-month">{monthLabel}</span>
+      </div>
+    </div>
+  );
+
+  // Phones: a scrolling list of the days that have tasks, instead of a cramped grid.
+  if (isPhone) {
+    const monthPrefix = `${ym.y}-${pad2(ym.m + 1)}`;
+    const days = Object.keys(byDay).filter((k) => k.startsWith(monthPrefix)).sort();
+    return (
+      <main className="main cal-main">
+        {header}
+        <p className="cal-phone-hint">{tr.calPhoneHint}</p>
+        <DndContext sensors={sensors}>
+          <div className="cal-agenda">
+            {days.length === 0 && <p className="planner-empty">{tr.calEmpty}</p>}
+            {days.map((k) => (
+              <section key={k} className={"cal-agenda-day" + (k === today ? " today" : "") + (k < today ? " past" : "")}>
+                <h3>
+                  <span className="cal-agenda-num">{dayNum(k)}</span>
+                  {formatPlanDate(k, tr.locale)}
+                  {k === today && <span className="cal-agenda-today">{tr.bucketToday}</span>}
+                </h3>
+                <div className="cal-agenda-items">
+                  {byDay[k].map((it) => <CalChip key={it.id} item={it} today={today} onOpen={onOpenDetail} showRoom />)}
+                </div>
+              </section>
+            ))}
+          </div>
+        </DndContext>
+      </main>
+    );
+  }
+
+  return (
+    <main className="main cal-main">
+      {header}
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragItem(null)}>
+        <div className="cal-layout">
+          <CalTray items={unscheduled} today={today} tr={tr} onOpen={onOpenDetail} />
+          <div className="cal-grid">
+            <div className="cal-weekdays">{weekdayLabels.map((w) => <span key={w}>{w}</span>)}</div>
+            {weeks.map((week) => (
+              <div className="cal-week" key={week[0]}>
+                {week.map((k) => (
+                  <CalDay key={k} dayKey={k} inMonth={ymOf(k).m === ym.m} today={today}
+                    items={byDay[k] || []} tr={tr} onOpen={onOpenDetail} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {dragItem ? (
+            <div className="cal-chip cal-chip-overlay" style={chipVars(dragItem.color)}>
+              <span className="cal-chip-text">{dragItem.text}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </main>
+  );
+}
+
+/* ---- planner "Later" column: mini month + upcoming list ---- */
+function MiniCalDay({ dayKey, inMonth, today, items }) {
+  const isPast = dayKey < today;
+  const { setNodeRef, isOver } = useDroppable({ id: "day:" + dayKey, disabled: isPast });
+  return (
+    <div ref={setNodeRef}
+      className={"mini-day" + (inMonth ? "" : " out") + (dayKey === today ? " today" : "") + (isPast ? " past" : "") + (isOver ? " over" : "")}>
+      <span className="mini-day-num">{dayNum(dayKey)}</span>
+      <span className="mini-dots">
+        {items.slice(0, 3).map((x) => <i key={x.id} style={{ background: x.color.dot }} />)}
+      </span>
+    </div>
+  );
+}
+
+function PlannerChip({ item, tr, onOpenDetail }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      {...attributes}
+      {...listeners}
+      className="cal-chip planner-chip"
+      style={{ ...chipVars(item.color), ...dragStyle(transform, transition, isDragging) }}
+      title={`${item.text} · ${item.roomName}`}
+      onClick={() => onOpenDetail(item.roomId, item.taskId)}
+    >
+      <span className="planner-chip-date">{formatPlanDate(item.planDate, tr.locale)}</span>
+      <span className="cal-chip-text">{item.text}</span>
+    </button>
+  );
+}
+
+function MiniCalendar({ rooms, today, tr, laterItems, onOpenDetail, onOpenCalendar }) {
+  const [ym, setYm] = useState(() => ymOf(today));
+  const weeks = monthWeeks(ym.y, ym.m);
+  const byDay = groupByDay(datedTasks(rooms).filter((x) => !x.done));
+  const label = new Date(ym.y, ym.m, 1).toLocaleDateString(tr.locale, { month: "long", year: "numeric" });
+  const letters = weeks[0].map((k) => {
+    const [y, m, d] = k.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(tr.locale, { weekday: "narrow" });
+  });
+  const UPCOMING = 4;
+  return (
+    <div className="mini-cal">
+      <div className="mini-cal-head">
+        <button type="button" className="cal-arrow sm" aria-label={tr.prevMonth} onClick={() => setYm((v) => shiftYm(v, -1))}><Icon.chevL /></button>
+        <span>{label}</span>
+        <button type="button" className="cal-arrow sm" aria-label={tr.nextMonth} onClick={() => setYm((v) => shiftYm(v, 1))}><Icon.chevR /></button>
+      </div>
+      <div className="mini-cal-grid">
+        {letters.map((l, i) => <span key={i} className="mini-wd">{l}</span>)}
+        {weeks.flat().map((k) => (
+          <MiniCalDay key={k} dayKey={k} inMonth={ymOf(k).m === ym.m} today={today} items={byDay[k] || []} />
+        ))}
+      </div>
+      {laterItems.length > 0 && <div className="planner-upcoming-lbl">{tr.upcoming}</div>}
+      <div className="planner-upcoming">
+        {laterItems.slice(0, UPCOMING).map((it) => <PlannerChip key={it.id} item={it} tr={tr} onOpenDetail={onOpenDetail} />)}
+        {laterItems.length > UPCOMING && <span className="cal-more">{tr.calMore(laterItems.length - UPCOMING)}</span>}
+      </div>
+      <button type="button" className="mini-cal-open" onClick={onOpenCalendar}>
+        <Icon.calendar width={15} height={15} aria-hidden="true" /> {tr.openCalendar} →
+      </button>
+    </div>
   );
 }
 
@@ -1041,7 +1337,7 @@ VITE_SUPABASE_KEY=sb_publishable_xxxxxxxx`}</pre>
 }
 
 /* ------------------------------ home -------------------------------- */
-function Home({ rooms, today, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onOpenDetail, onMoveTask }) {
+function Home({ rooms, today, pct, overall, tr, onOpenRoom, onAddRoom, onToggleTask, onOpenDetail, onMoveTask, onOpenCalendar }) {
   return (
     <main className="main">
       <div className="head">
@@ -1095,7 +1391,7 @@ function Home({ rooms, today, pct, overall, tr, onOpenRoom, onAddRoom, onToggleT
         </button>
       </div>
 
-      <Planner rooms={rooms} today={today} tr={tr} onToggleTask={onToggleTask} onOpenDetail={onOpenDetail} onMove={onMoveTask} />
+      <Planner rooms={rooms} today={today} tr={tr} onToggleTask={onToggleTask} onOpenDetail={onOpenDetail} onMove={onMoveTask} onOpenCalendar={onOpenCalendar} />
     </main>
   );
 }
@@ -1709,6 +2005,12 @@ export default function App() {
     const activeItem = flat.find((x) => x.id === activeId);
     if (!activeItem) return;
 
+    // Dropped on a day in the mini calendar: just give it that date.
+    if (overId.startsWith("day:")) {
+      setTaskPlanDate(activeItem.roomId, activeItem.taskId, overId.slice(4));
+      return;
+    }
+
     let bucket, destExcludingActive, insertAt;
     if (overId.startsWith("col:")) {
       bucket = overId.slice(4);
@@ -1834,6 +2136,12 @@ export default function App() {
         >
           <Icon.home /> {tr.dashboard}
         </button>
+        <button
+          className={"home-btn" + (view === "calendar" ? " active" : "")}
+          onClick={() => { setView("calendar"); setNavOpen(false); }}
+        >
+          <Icon.calendar /> {tr.calendar}
+        </button>
 
         <button
           type="button"
@@ -1941,8 +2249,18 @@ export default function App() {
             <button onClick={() => setAdding(true)}>{tr.addFirstRoom}</button>
           </div>
         </main>
+      ) : view === "calendar" ? (
+        <CalendarView
+          rooms={rooms}
+          today={today}
+          tr={tr}
+          isPhone={isPhone}
+          onOpenDetail={(roomId, taskId) => setDetail({ roomId, taskId })}
+          onSetDate={(roomId, taskId, date) => setTaskPlanDate(roomId, taskId, date)}
+        />
       ) : view === "home" ? (
         <Home
+          onOpenCalendar={() => setView("calendar")}
           today={today}
           rooms={rooms}
           pct={pct}
