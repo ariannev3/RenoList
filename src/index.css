@@ -794,7 +794,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .cal-agenda-today { background:rgba(255,255,255,.08); }
 
 /* layout v2: unscheduled tray as a bar above the month, so days get the full width */
-.cal-layout { display:flex; flex-direction:column; gap:14px; }
+.cal-layout { display:flex; flex-direction:column; gap:14px; align-items:stretch; }
 .cal-tray { position:static; max-height:none; overflow:visible; display:flex; align-items:flex-start; gap:14px; padding:10px 12px; }
 .cal-tray-intro { flex:0 0 150px; }
 .cal-tray-intro .cal-tray-hint { margin:2px 0 0; }
