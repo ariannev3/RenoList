@@ -59,7 +59,7 @@ const TRANSLATIONS = {
     statusLbl: "Board status", statusSub: "Whether changes are syncing to the shared database.",
     planner: "Planner", plannerSub: "Drag your open tasks into when you want to do them. Dates move along by themselves.",
     bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketLater: "Later",
-    overdue: "Overdue", plannedFor: "Planned for", clearDate: "Clear", locale: "en-GB",
+    overdue: "Overdue", plannedFor: "Planned for", clearDate: "Clear", toLabel: "to", locale: "en-GB",
     plannerEmptyPool: "All open tasks land here until you plan them.",
     plannerEmptyBucket: "Drag tasks here",
     statusTodo: "To do", statusInProgress: "In progress", statusOnHold: "On hold", statusDone: "Done",
@@ -100,7 +100,7 @@ const TRANSLATIONS = {
     statusLbl: "Bordstatus", statusSub: "Of wijzigingen worden gesynchroniseerd met de gedeelde database.",
     planner: "Planning", plannerSub: "Sleep je openstaande taken naar wanneer je ze wilt doen. Datums schuiven vanzelf mee.",
     bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketLater: "Later",
-    overdue: "Te laat", plannedFor: "Gepland op", clearDate: "Wissen", locale: "nl-NL",
+    overdue: "Te laat", plannedFor: "Gepland op", clearDate: "Wissen", toLabel: "tot", locale: "nl-NL",
     plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
     plannerEmptyBucket: "Sleep taken hierheen",
     statusTodo: "Te doen", statusInProgress: "Bezig", statusOnHold: "Gepauzeerd", statusDone: "Klaar",
@@ -816,7 +816,7 @@ function datedTasks(rooms) {
     (r.tasks || []).forEach((t) => {
       if (!t.planDate) return;
       out.push({ id: `${r.id}::${t.id}`, roomId: r.id, taskId: t.id, roomName: r.name, color,
-        text: t.text, planDate: t.planDate, done: taskComplete(t), order: t.planOrder ?? 0 });
+        text: t.text, planDate: t.planDate, planEndDate: t.planEndDate || null, done: taskComplete(t), order: t.planOrder ?? 0 });
     });
   });
   return out;
@@ -893,7 +893,32 @@ function CalTray({ items, today, tr, onOpen }) {
 function CalendarView({ rooms, today, tr, isPhone, onOpenDetail, onSetDate }) {
   const [ym, setYm] = useState(() => ymOf(today));
   const weeks = monthWeeks(ym.y, ym.m);
-  const byDay = groupByDay(datedTasks(rooms));
+  const BAR_H = 20, BAR_GAP = 3, BAR_TOP = 34;
+  const allDated = datedTasks(rooms);
+  const isRanged = (it) => it.planEndDate && it.planEndDate > it.planDate;
+  const singleItems = allDated.filter((it) => !isRanged(it));
+  const rangedItems = allDated.filter(isRanged);
+  const byDay = groupByDay(singleItems);
+  const dayDiff = (a, b) => Math.round((new Date(b + "T00:00") - new Date(a + "T00:00")) / 86400000);
+  const weekSegments = (week) => {
+    const w0 = week[0], w6 = week[6], segs = [];
+    rangedItems.forEach((it) => {
+      if (it.planEndDate < w0 || it.planDate > w6) return;
+      const segS = it.planDate < w0 ? w0 : it.planDate;
+      const segE = it.planEndDate > w6 ? w6 : it.planEndDate;
+      const startCol = dayDiff(w0, segS);
+      segs.push({ it, startCol, span: dayDiff(w0, segE) - startCol + 1, roundL: segS === it.planDate, roundR: segE === it.planEndDate });
+    });
+    segs.sort((a, b) => a.startCol - b.startCol || b.span - a.span);
+    const laneEnds = [];
+    segs.forEach((seg) => {
+      const end = seg.startCol + seg.span - 1;
+      let lane = laneEnds.findIndex((e) => e < seg.startCol);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(end); } else laneEnds[lane] = end;
+      seg.lane = lane;
+    });
+    return { segs, laneCount: laneEnds.length };
+  };
   const unscheduled = flattenOpenTasks(rooms, today).filter((x) => !x.planDate);
   const monthLabel = new Date(ym.y, ym.m, 1).toLocaleDateString(tr.locale, { month: "long", year: "numeric" });
   const weekdayLabels = weeks[0].map((k) => {
@@ -930,7 +955,15 @@ function CalendarView({ rooms, today, tr, isPhone, onOpenDetail, onSetDate }) {
   // Phones: a scrolling list of the days that have tasks, instead of a cramped grid.
   if (isPhone) {
     const monthPrefix = `${ym.y}-${pad2(ym.m + 1)}`;
-    const days = Object.keys(byDay).filter((k) => k.startsWith(monthPrefix)).sort();
+    const byDayPhone = groupByDay([
+      ...singleItems,
+      ...rangedItems.flatMap((it) => {
+        const out = []; let d = it.planDate;
+        while (d <= it.planEndDate) { out.push({ ...it, planDate: d }); d = addDays(d, 1); }
+        return out;
+      }),
+    ]);
+    const days = Object.keys(byDayPhone).filter((k) => k.startsWith(monthPrefix)).sort();
     return (
       <main className="main cal-main">
         {header}
@@ -946,7 +979,7 @@ function CalendarView({ rooms, today, tr, isPhone, onOpenDetail, onSetDate }) {
                   {k === today && <span className="cal-agenda-today">{tr.bucketToday}</span>}
                 </h3>
                 <div className="cal-agenda-items">
-                  {byDay[k].map((it) => <CalChip key={it.id} item={it} today={today} onOpen={onOpenDetail} showRoom />)}
+                  {byDayPhone[k].map((it) => <CalChip key={it.id} item={it} today={today} onOpen={onOpenDetail} showRoom />)}
                 </div>
               </section>
             ))}
@@ -964,14 +997,35 @@ function CalendarView({ rooms, today, tr, isPhone, onOpenDetail, onSetDate }) {
           <CalTray items={unscheduled} today={today} tr={tr} onOpen={onOpenDetail} />
           <div className="cal-grid">
             <div className="cal-weekdays">{weekdayLabels.map((w) => <span key={w}>{w}</span>)}</div>
-            {weeks.map((week) => (
-              <div className="cal-week" key={week[0]}>
-                {week.map((k) => (
-                  <CalDay key={k} dayKey={k} inMonth={ymOf(k).m === ym.m} today={today}
-                    items={byDay[k] || []} tr={tr} onOpen={onOpenDetail} />
-                ))}
-              </div>
-            ))}
+            {weeks.map((week) => {
+              const { segs, laneCount } = weekSegments(week);
+              return (
+                <div className="cal-week" key={week[0]} style={{ position: "relative", "--bars-h": laneCount * (BAR_H + BAR_GAP) + "px" }}>
+                  {segs.map((seg, i) => (
+                    <button
+                      key={seg.it.id + ":" + i}
+                      type="button"
+                      className={"cal-bar" + (seg.it.done ? " done" : "") + (seg.roundL ? "" : " cont-l") + (seg.roundR ? "" : " cont-r")}
+                      style={{
+                        top: `calc(${BAR_TOP}px + ${seg.lane} * (${BAR_H}px + ${BAR_GAP}px))`,
+                        left: `calc(${seg.startCol} / 7 * 100% + 3px)`,
+                        width: `calc(${seg.span} / 7 * 100% - 6px)`,
+                        height: BAR_H + "px",
+                        ...chipVars(seg.it.color),
+                      }}
+                      title={`${seg.it.text} \u00b7 ${seg.it.roomName}`}
+                      onClick={() => onOpenDetail(seg.it.roomId, seg.it.taskId)}
+                    >
+                      <span className="cal-bar-text">{seg.it.text}</span>
+                    </button>
+                  ))}
+                  {week.map((k) => (
+                    <CalDay key={k} dayKey={k} inMonth={ymOf(k).m === ym.m} today={today}
+                      items={byDay[k] || []} tr={tr} onOpen={onOpenDetail} />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
         <DragOverlay dropAnimation={null}>
@@ -1491,7 +1545,7 @@ function timeAgo(ts, tr) {
 }
 
 function TaskDetailModal({
-  task, room, color, tr, onClose, onRename, onSetStatus, onSetPlanDate,
+  task, room, color, tr, onClose, onRename, onSetStatus, onSetPlanDate, onSetPlanEnd,
   onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub, onAddComment,
 }) {
   const subs = task.subtasks || [];
@@ -1571,9 +1625,20 @@ function TaskDetailModal({
                 onChange={(e) => onSetPlanDate(task.id, e.target.value || null)}
               />
               {task.planDate && (
-                <button type="button" className="detail-plan-clear" onClick={() => onSetPlanDate(task.id, null)}>
-                  {tr.clearDate}
-                </button>
+                <>
+                  <span className="detail-plan-to">{tr.toLabel}</span>
+                  <input
+                    id="detail-plan-end"
+                    type="date"
+                    className="detail-plan-input"
+                    value={task.planEndDate || ""}
+                    min={task.planDate}
+                    onChange={(e) => onSetPlanEnd(task.id, e.target.value || null)}
+                  />
+                  <button type="button" className="detail-plan-clear" onClick={() => onSetPlanDate(task.id, null)}>
+                    {tr.clearDate}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1915,8 +1980,15 @@ export default function App() {
       tasks: r.tasks.map((t) => {
         if (t.id !== taskId) return t;
         const { plan, ...rest } = t;
-        return { ...rest, planDate: planDate || null };
+        let planEndDate = rest.planEndDate || null;
+        if (!planDate || (planEndDate && planEndDate < planDate)) planEndDate = null;
+        return { ...rest, planDate: planDate || null, planEndDate };
       }),
+    }));
+  const setTaskPlanEnd = (roomId, taskId, end) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, planEndDate: end || null } : t)),
     }));
   const addTaskComment = (roomId, taskId, text) =>
     update(roomId, (r) => ({
@@ -2352,6 +2424,7 @@ export default function App() {
         onRename={(taskId, text) => detailRenameTask(detailRoom.id, taskId, text)}
         onSetStatus={(taskId, statusValue) => setTaskStatus(detailRoom.id, taskId, statusValue)}
         onSetPlanDate={(taskId, date) => setTaskPlanDate(detailRoom.id, taskId, date)}
+        onSetPlanEnd={(taskId, end) => setTaskPlanEnd(detailRoom.id, taskId, end)}
         onAddSub={(taskId, text) => detailAddSub(detailRoom.id, taskId, text)}
         onToggleSub={(taskId, subId) => togglePlannerSubtask(detailRoom.id, taskId, subId)}
         onDeleteSub={(taskId, subId) => detailDeleteSub(detailRoom.id, taskId, subId)}
