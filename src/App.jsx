@@ -68,6 +68,7 @@ const TRANSLATIONS = {
     yourNameLbl: "Your name", yourNameSub: "Shown on comments you leave on tasks.",
     yourNamePh: "e.g. Alex", defaultCommenter: "You", subtasksLbl: "Subtasks",
     themeLbl: "Theme", themeAuto: "Auto", themeLight: "Light", themeDark: "Dark",
+    themeSub: "Auto follows the light/dark setting of this device.",
     openMenu: "Open menu", closeMenu: "Close menu",
   },
   nl: {
@@ -105,6 +106,7 @@ const TRANSLATIONS = {
     yourNameLbl: "Jouw naam", yourNameSub: "Zichtbaar bij reacties die je op taken achterlaat.",
     yourNamePh: "bijv. Alex", defaultCommenter: "Jij", subtasksLbl: "Subtaken",
     themeLbl: "Thema", themeAuto: "Auto", themeLight: "Licht", themeDark: "Donker",
+    themeSub: "Auto volgt de licht/donker-instelling van dit apparaat.",
     openMenu: "Menu openen", closeMenu: "Menu sluiten",
   },
 };
@@ -1099,7 +1101,7 @@ function Home({ rooms, today, pct, overall, tr, onOpenRoom, onAddRoom, onToggleT
 }
 
 /* ---------------------------- settings ------------------------------ */
-function Settings({ tr, lang, onSetLang, status, syncLabel, commenterName, onSetCommenterName }) {
+function Settings({ tr, lang, onSetLang, theme, onSetTheme, status, syncLabel, commenterName, onSetCommenterName }) {
   return (
     <main className="main">
       <div className="head">
@@ -1130,6 +1132,26 @@ function Settings({ tr, lang, onSetLang, status, syncLabel, commenterName, onSet
             >
               {tr.dutch}
             </button>
+          </div>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-head">
+            <h2>{tr.themeLbl}</h2>
+            <p>{tr.themeSub}</p>
+          </div>
+          <div className="lang-options" role="group" aria-label={tr.themeLbl}>
+            {[["auto", tr.themeAuto], ["light", tr.themeLight], ["dark", tr.themeDark]].map(([v, lbl]) => (
+              <button
+                key={v}
+                type="button"
+                className={"lang-opt" + (theme === v ? " active" : "")}
+                aria-pressed={theme === v}
+                onClick={() => onSetTheme(v)}
+              >
+                {lbl}
+              </button>
+            ))}
           </div>
         </section>
 
@@ -1884,21 +1906,6 @@ export default function App() {
           >
             <Icon.settings /> {tr.settings}
           </button>
-
-          <span className="theme-seg-lbl">{tr.themeLbl}</span>
-          <div className="theme-seg" role="group" aria-label={tr.themeLbl}>
-            {[["auto", tr.themeAuto], ["light", tr.themeLight], ["dark", tr.themeDark]].map(([v, lbl]) => (
-              <button
-                key={v}
-                type="button"
-                className={theme === v ? "on" : ""}
-                aria-pressed={theme === v}
-                onClick={() => setTheme(v)}
-              >
-                {lbl}
-              </button>
-            ))}
-          </div>
         </div>
       </aside>
 
@@ -1919,6 +1926,8 @@ export default function App() {
           tr={tr}
           lang={lang}
           onSetLang={setLang}
+          theme={theme}
+          onSetTheme={setTheme}
           status={status}
           syncLabel={syncLabel}
           commenterName={commenterName}
