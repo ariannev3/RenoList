@@ -47,6 +47,9 @@ const TRANSLATIONS = {
     tasksDone: "Tasks done", stillToDo: (n) => `${n} still to do`,
     materialsBought: "Materials bought", leftToBuy: (n) => `${n} left to buy`,
     taskProgress: "Task progress", ofRoomsTasks: "of this room's tasks",
+    roomProgress: "Room progress",
+    tasksLeft: (n) => n === 0 ? "All tasks done" : `${n} task${n === 1 ? "" : "s"} to do`,
+    materialsLeft: (n) => n === 0 ? "Everything bought" : `${n} material${n === 1 ? "" : "s"} to buy`,
     noRoomsTitle: "No rooms yet", noRoomsBody: "Add a room to start tracking its tasks and materials.",
     addFirstRoom: "Add your first room",
     connecting: "Connecting…", live: "Live · shared board", offline: "Offline — not saving",
@@ -81,6 +84,9 @@ const TRANSLATIONS = {
     tasksDone: "Taken klaar", stillToDo: (n) => `${n} nog te doen`,
     materialsBought: "Materialen gekocht", leftToBuy: (n) => `${n} nog te kopen`,
     taskProgress: "Taakvoortgang", ofRoomsTasks: "van de taken in deze kamer",
+    roomProgress: "Voortgang kamer",
+    tasksLeft: (n) => n === 0 ? "Alle taken klaar" : `${n} ${n === 1 ? "taak" : "taken"} te doen`,
+    materialsLeft: (n) => n === 0 ? "Alles gekocht" : `${n} ${n === 1 ? "materiaal" : "materialen"} te kopen`,
     noRoomsTitle: "Nog geen kamers", noRoomsBody: "Voeg een kamer toe om taken en materialen bij te houden.",
     addFirstRoom: "Voeg je eerste kamer toe",
     connecting: "Verbinden…", live: "Live · gedeeld bord", offline: "Offline — wordt niet opgeslagen",
@@ -291,7 +297,7 @@ function Check({ done, color, onClick, small, disabled }) {
     <button
       type="button"
       className={"box" + (done ? " on" : "") + (small ? " sub" : "") + (disabled ? " disabled" : "")}
-      style={{ "--dot": color.dot, "--chip": color.chip }}
+      style={{ "--dot": color.dot, "--chip": color.chip, "--tick": color.ink }}
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       aria-pressed={done}
@@ -372,24 +378,32 @@ const dragStyle = (transform, transition, isDragging) => ({
 // Shared by task cards in a room's list and in the planner: a subtask-count
 // pill, a comment-count pill, and a completion bar. Always shown (even at 0)
 // so every card has the same shape and is quick to scan.
+// Subtask / comment counts — only the ones that aren't zero, so cards for
+// simple tasks stay one line tall.
 function TaskCardMeta({ subsTotal, commentsTotal }) {
+  if (!subsTotal && !commentsTotal) return null;
   return (
     <div className="task-meta">
-      <span className="meta-pill">
-        <Icon.tasks width={16} height={16} aria-hidden="true" />
-        {subsTotal}
-      </span>
-      <span className="meta-pill">
-        <Icon.comment width={16} height={16} aria-hidden="true" />
-        {commentsTotal}
-      </span>
+      {subsTotal > 0 && (
+        <span className="meta-pill">
+          <Icon.tasks width={16} height={16} aria-hidden="true" />
+          {subsTotal}
+        </span>
+      )}
+      {commentsTotal > 0 && (
+        <span className="meta-pill">
+          <Icon.comment width={16} height={16} aria-hidden="true" />
+          {commentsTotal}
+        </span>
+      )}
     </div>
   );
 }
-function TaskCardProgress({ subsDone, subsTotal, complete, color, tr }) {
-  // With no subtasks, a done task still reads as "fully progressed";
-  // otherwise progress tracks how many subtasks are checked off.
-  const pct = subsTotal > 0 ? Math.round((subsDone / subsTotal) * 100) : (complete ? 100 : 0);
+function TaskCardProgress({ subsDone, subsTotal, color, tr }) {
+  // Only meaningful when the task has subtasks; otherwise the checkbox and
+  // status already say everything.
+  if (!subsTotal) return null;
+  const pct = Math.round((subsDone / subsTotal) * 100);
   return (
     <div className="task-card-progress">
       <div className="task-card-progress-top">
@@ -567,7 +581,7 @@ function PlannerCard({ item, tr, onToggle, onOpenDetail }) {
           </span>
           <PlanDateBadge item={item} tr={tr} />
         </div>
-        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={false} color={item.color} tr={tr} />
+        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} color={item.color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
       </div>
     </div>
@@ -596,7 +610,7 @@ function PlannerCardPreview({ item, tr }) {
           </span>
           <PlanDateBadge item={item} tr={tr} />
         </div>
-        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={false} color={item.color} tr={tr} />
+        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} color={item.color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={(item.comments || []).length} />
       </div>
     </div>
@@ -793,7 +807,7 @@ function TaskRow({ task, color, tr, onToggle, onDelete, onOpenDetail }) {
             {task.text}
           </button>
         </div>
-        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} complete={complete} color={color} tr={tr} />
+        <TaskCardProgress subsDone={subsDone} subsTotal={subs.length} color={color} tr={tr} />
         <TaskCardMeta subsTotal={subs.length} commentsTotal={commentsTotal} />
       </div>
     </li>
@@ -882,7 +896,7 @@ function ColorPicker({ ci, onPick, size = "sm" }) {
                 key={col.key}
                 type="button"
                 className="color-swatch"
-                style={{ background: col.dot }}
+                style={{ background: col.dot, color: col.ink }}
                 onClick={() => { onPick(i); setOpen(false); }}
                 aria-label={col.key}
               >
@@ -941,7 +955,7 @@ function ListColumn({
             placeholder={tr.amount}
           />
         )}
-        <button className="add-btn" style={{ background: color.dot }} onClick={submit} aria-label="Add">
+        <button className="add-btn" style={{ background: color.dot, color: color.ink }} onClick={submit} aria-label="Add">
           <Icon.plus />
         </button>
       </div>
@@ -1322,7 +1336,7 @@ function TaskDetailModal({
                 onKeyDown={(e) => e.key === "Enter" && submitComment()}
                 placeholder={tr.addCommentPh}
               />
-              <button className="comment-send" style={{ background: color.dot }} onClick={submitComment} aria-label="Send comment">
+              <button className="comment-send" style={{ background: color.dot, color: color.ink }} onClick={submitComment} aria-label="Send comment">
                 <Icon.send />
               </button>
             </div>
@@ -1748,12 +1762,6 @@ export default function App() {
     return Math.round((tasks.filter(taskComplete).length / tasks.length) * 100);
   };
 
-  const STAT = {
-    lav: { chip: "#E7DEFA", dot: "#B79CEB", ink: "#4A3A72" },
-    peach: { chip: "#FBE0D5", dot: "#F0A184", ink: "#7A4230" },
-    sky: { chip: "#DEEAFB", dot: "#89B4EF", ink: "#2F4E7C" },
-  };
-
   const syncLabel =
     status === "live" ? tr.live
     : status === "offline" ? tr.offline
@@ -1961,24 +1969,17 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="stats">
-                  <div className="stat" style={{ background: STAT.lav.chip, color: STAT.lav.ink }}>
-                    <div className="stat-ic"><Icon.tasks /></div>
-                    <div className="stat-lbl">{tr.tasksDone}</div>
-                    <div className="stat-num">{tDone}<span style={{ opacity: .5, fontSize: 20 }}> / {active.tasks.length}</span></div>
-                    <div className="stat-sub">{tr.stillToDo(active.tasks.length - tDone)}</div>
+                <div className="room-summary" style={{ background: c.chip, color: c.ink }}>
+                  <div className="room-summary-top">
+                    <span className="room-summary-lbl">{tr.roomProgress}</span>
+                    <span className="room-summary-pct">{p}%</span>
                   </div>
-                  <div className="stat" style={{ background: STAT.peach.chip, color: STAT.peach.ink }}>
-                    <div className="stat-ic"><Icon.cart /></div>
-                    <div className="stat-lbl">{tr.materialsBought}</div>
-                    <div className="stat-num">{mDone}<span style={{ opacity: .5, fontSize: 20 }}> / {active.materials.length}</span></div>
-                    <div className="stat-sub">{tr.leftToBuy(active.materials.length - mDone)}</div>
+                  <div className="bar room-summary-bar">
+                    <i style={{ width: p + "%", background: c.dot }} />
                   </div>
-                  <div className="stat" style={{ background: STAT.sky.chip, color: STAT.sky.ink }}>
-                    <div className="stat-ic"><Icon.check /></div>
-                    <div className="stat-lbl">{tr.taskProgress}</div>
-                    <div className="stat-num">{p}%</div>
-                    <div className="stat-sub">{tr.ofRoomsTasks}</div>
+                  <div className="room-summary-meta">
+                    <span><Icon.tasks width={15} height={15} aria-hidden="true" />{tr.tasksLeft(active.tasks.length - tDone)}</span>
+                    <span><Icon.cart width={15} height={15} aria-hidden="true" />{tr.materialsLeft(active.materials.length - mDone)}</span>
                   </div>
                 </div>
 

@@ -5,7 +5,7 @@ html, body, #root { margin: 0; padding: 0; min-height: 100%; }
 body { background: #FAF4E4; overflow-x: hidden; }
 
 .reno {
-  --cream:#F1EBDD; --card:#FCFAF4; --ink:#26231D; --muted:#948F86;
+  --cream:#F1EBDD; --card:#FCFAF4; --ink:#26231D; --muted:#6E6960;
   --line:rgba(38,35,29,.08); --sidebar:#181713; --side-ink:#EBE7DD; --side-muted:#8C877B;
   --bg:#FAF4E4;
   --r-sm:10px; --r-md:13px; --r-lg:20px; --r-pill:999px;
@@ -120,6 +120,15 @@ body { background: #FAF4E4; overflow-x: hidden; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
 
 /* stat cards */
+/* room progress strip (replaces the three stat tiles) */
+.room-summary { border-radius:var(--r-lg); padding:16px 20px 15px; margin-bottom:24px; }
+.room-summary-top { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.room-summary-lbl { font-size:13.5px; font-weight:700; }
+.room-summary-pct { font-size:24px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.room-summary-bar { height:8px; margin:10px 0 12px; background:rgba(255,255,255,.65); }
+.room-summary-meta { display:flex; flex-wrap:wrap; gap:6px 22px; font-size:13px; font-weight:600; }
+.room-summary-meta span { display:inline-flex; align-items:center; gap:6px; }
+.room-summary-meta svg { flex:0 0 auto; opacity:.8; }
 .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:26px; }
 .stat { border-radius:var(--r-lg); padding:20px 22px; position:relative; overflow:hidden; min-width:0; max-width:100%; }
 .stat-ic { width:34px; height:34px; border-radius:var(--r-sm); background:rgba(255,255,255,.55);
@@ -262,7 +271,7 @@ body { background: #FAF4E4; overflow-x: hidden; }
 .box:not(.on):not(.disabled):hover { border-color:var(--dot); background:var(--chip); }
 .box:focus-visible { outline:2px solid var(--dot); outline-offset:2px; }
 /* Checked — filled with the room accent + soft ring */
-.box.on { border-color:transparent; background:var(--dot); box-shadow:0 0 0 3px var(--chip); }
+.box.on { border-color:transparent; background:var(--dot); box-shadow:0 0 0 3px var(--chip); color:var(--tick, #fff); }
 /* Disabled — greyed and non-interactive (a task driven by its subtasks) */
 .box.disabled { cursor:not-allowed; }
 .box.disabled:not(.on) { background:#ECE7DD; border-color:#D3CDC0; box-shadow:none; }
@@ -345,6 +354,10 @@ body { background: #FAF4E4; overflow-x: hidden; }
 .subitem .item-text { font-size:13.5px; }
 .subitem.done .item-text { text-decoration:line-through; color:var(--muted); font-weight:400; }
 .box.sub { width:19px; height:19px; border-radius:var(--r-sm); }
+/* buttons get default padding from the browser, which squeezed the tick to ~6px */
+.reno .box { padding:0; }
+.reno .box svg { flex:0 0 auto; width:14px; height:14px; }
+.reno .box.sub svg { width:12px; height:12px; }
 .sub-add-btn { display:inline-flex; align-items:center; gap:5px; align-self:flex-start;
   margin:2px 0 6px 32px; padding:5px 8px; border-radius:var(--r-sm); font-size:12.5px; font-weight:600;
   color:var(--muted); transition:.12s; }
@@ -587,3 +600,10 @@ body { background: #FAF4E4; overflow-x: hidden; }
 :root[data-theme="dark"] .detail-plan-input { color-scheme:dark; }
 :root[data-theme="dark"] .planner-card-date { color:var(--muted); background:rgba(255,255,255,.08); }
 :root[data-theme="dark"] .planner-card-date.overdue { color:#F2A08E; background:rgba(231,113,94,.16); }
+
+/* room progress strip + pastel-button icons in dark mode */
+:root[data-theme="dark"] .room-summary { background:var(--card) !important; color:var(--ink) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+:root[data-theme="dark"] .room-summary-bar { background:rgba(255,255,255,.12); }
+/* checked boxes keep their room colour in dark mode (the neutral dark box rule above was overriding it) */
+:root[data-theme="dark"] .reno .box.on { background:var(--dot); border-color:transparent; box-shadow:0 0 0 3px rgba(255,255,255,.08); }
