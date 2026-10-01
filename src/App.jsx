@@ -59,7 +59,7 @@ const TRANSLATIONS = {
     statusLbl: "Board status", statusSub: "Whether changes are syncing to the shared database.",
     planner: "Planner", plannerSub: "Drag your open tasks into when you want to do them. Dates move along by themselves.",
     bucketUnscheduled: "Unscheduled", bucketToday: "Today", bucketTomorrow: "Tomorrow", bucketLater: "Later",
-    overdue: "Overdue", plannedFor: "Planned for", clearDate: "Clear", locale: "en-GB",
+    overdue: "Overdue", plannedFor: "Planned for", clearDate: "Clear", fixedAppt: "Fixed appointment", locale: "en-GB",
     plannerEmptyPool: "All open tasks land here until you plan them.",
     plannerEmptyBucket: "Drag tasks here",
     statusTodo: "To do", statusInProgress: "In progress", statusOnHold: "On hold", statusDone: "Done",
@@ -100,7 +100,7 @@ const TRANSLATIONS = {
     statusLbl: "Bordstatus", statusSub: "Of wijzigingen worden gesynchroniseerd met de gedeelde database.",
     planner: "Planning", plannerSub: "Sleep je openstaande taken naar wanneer je ze wilt doen. Datums schuiven vanzelf mee.",
     bucketUnscheduled: "Nog niet gepland", bucketToday: "Vandaag", bucketTomorrow: "Morgen", bucketLater: "Later",
-    overdue: "Te laat", plannedFor: "Gepland op", clearDate: "Wissen", locale: "nl-NL",
+    overdue: "Te laat", plannedFor: "Gepland op", clearDate: "Wissen", fixedAppt: "Vaste afspraak", locale: "nl-NL",
     plannerEmptyPool: "Alle openstaande taken komen hier terecht totdat je ze inplant.",
     plannerEmptyBucket: "Sleep taken hierheen",
     statusTodo: "Te doen", statusInProgress: "Bezig", statusOnHold: "Gepauzeerd", statusDone: "Klaar",
@@ -254,6 +254,12 @@ const Icon = {
   pencil: (p) => (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" {...p}>
       <path d="M4 20h4L18.5 9.5a2 2 0 000-2.8l-1.2-1.2a2 2 0 00-2.8 0L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  ),
+  pin: (p) => (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" {...p}>
+      <path d="M9 4h6l-1 6 3 3v2H7v-2l3-3-1-6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M12 15v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   ),
   tasks: (p) => (
@@ -549,7 +555,7 @@ function flattenOpenTasks(rooms, today) {
         roomId: r.id, taskId: t.id, roomName: r.name, color,
         text: t.text, subtasks: t.subtasks || [], comments: t.comments || [], status: t.status,
         planDate: t.planDate || null, bucket: planBucket(t.planDate, today),
-        overdue: !!t.planDate && t.planDate < today, order: t.planOrder ?? 0,
+        overdue: !!t.planDate && t.planDate < today, order: t.planOrder ?? 0, pinned: !!t.pinned,
       });
     });
   });
@@ -816,7 +822,7 @@ function datedTasks(rooms) {
     (r.tasks || []).forEach((t) => {
       if (!t.planDate) return;
       out.push({ id: `${r.id}::${t.id}`, roomId: r.id, taskId: t.id, roomName: r.name, color,
-        text: t.text, planDate: t.planDate, done: taskComplete(t), order: t.planOrder ?? 0 });
+        text: t.text, planDate: t.planDate, done: taskComplete(t), order: t.planOrder ?? 0, pinned: !!t.pinned });
     });
   });
   return out;
@@ -832,7 +838,7 @@ const chipVars = (color) => ({ "--c-bg": color.chip, "--c-dot": color.dot, "--c-
 // A one-line task chip in the room colour, Google-Calendar style. Click opens
 // the full task window; drag moves it to another day.
 function CalChip({ item, today, onOpen, showRoom }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: "cal:" + item.id, data: { item } });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: "cal:" + item.id, data: { item }, disabled: item.pinned });
   const overdue = !item.done && item.planDate && item.planDate < today;
   return (
     <button
@@ -840,11 +846,12 @@ function CalChip({ item, today, onOpen, showRoom }) {
       type="button"
       {...attributes}
       {...listeners}
-      className={"cal-chip" + (item.done ? " done" : "") + (overdue ? " overdue" : "") + (isDragging ? " dragging" : "")}
+      className={"cal-chip" + (item.done ? " done" : "") + (overdue ? " overdue" : "") + (item.pinned ? " pinned" : "") + (isDragging ? " dragging" : "")}
       style={chipVars(item.color)}
       title={`${item.text} · ${item.roomName}`}
       onClick={() => onOpen(item.roomId, item.taskId)}
     >
+      {item.pinned && <Icon.pin className="cal-chip-pin" />}
       <span className="cal-chip-text">{item.text}</span>
       {showRoom && <span className="cal-chip-room">{item.roomName}</span>}
     </button>
@@ -1494,7 +1501,7 @@ function timeAgo(ts, tr) {
 }
 
 function TaskDetailModal({
-  task, room, color, tr, onClose, onRename, onSetStatus, onSetPlanDate,
+  task, room, color, tr, onClose, onRename, onSetStatus, onSetPlanDate, onTogglePin,
   onAddSub, onToggleSub, onDeleteSub, onRenameSub, onReorderSub, onAddComment,
 }) {
   const subs = task.subtasks || [];
@@ -1580,6 +1587,14 @@ function TaskDetailModal({
               )}
             </div>
           </div>
+          <button
+            type="button"
+            className={"detail-pin" + (task.pinned ? " on" : "")}
+            aria-pressed={!!task.pinned}
+            onClick={() => onTogglePin(task.id, !task.pinned)}
+          >
+            <Icon.pin /> {tr.fixedAppt}
+          </button>
 
           {subs.length > 0 && (
             <div className="detail-progress">
@@ -1920,6 +1935,11 @@ export default function App() {
         const { plan, ...rest } = t;
         return { ...rest, planDate: planDate || null };
       }),
+    }));
+  const setTaskPinned = (roomId, taskId, pinned) =>
+    update(roomId, (r) => ({
+      ...r,
+      tasks: r.tasks.map((t) => (t.id === taskId ? { ...t, pinned } : t)),
     }));
   const addTaskComment = (roomId, taskId, text) =>
     update(roomId, (r) => ({
@@ -2355,6 +2375,7 @@ export default function App() {
         onRename={(taskId, text) => detailRenameTask(detailRoom.id, taskId, text)}
         onSetStatus={(taskId, statusValue) => setTaskStatus(detailRoom.id, taskId, statusValue)}
         onSetPlanDate={(taskId, date) => setTaskPlanDate(detailRoom.id, taskId, date)}
+        onTogglePin={(taskId, pinned) => setTaskPinned(detailRoom.id, taskId, pinned)}
         onAddSub={(taskId, text) => detailAddSub(detailRoom.id, taskId, text)}
         onToggleSub={(taskId, subId) => togglePlannerSubtask(detailRoom.id, taskId, subId)}
         onDeleteSub={(taskId, subId) => detailDeleteSub(detailRoom.id, taskId, subId)}
